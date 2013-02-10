@@ -20,10 +20,4 @@ typedef struct OS_Mutex
 	
 } OS_Mutex;
 
-
-OS_Error OS_MutexInit(OS_Mutex *mutex);
-OS_Error OS_MutexLock(OS_Mutex *mutex);
-OS_Error OS_MutexUnlock(OS_Mutex *mutex);
-OS_Error OS_MutexDestroy(OS_Mutex *mutex);
-
 #endif //_OS_MUTEX_H

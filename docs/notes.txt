@@ -1,7 +1,7 @@
 Things to do
 --------------------------------------------------------------------------
 1. DONE: At context store and restore, interrupts should be disabled
-2. DONE: In function OSTimer1ISR, after the S3C2440_ContextStore call, the
+2. DONE: In function OSTimer1ISR, after the _OS_ContextStore call, the
 	function continues to run on the same threads context. This is not entirely correct
 	We will have to restore it to system context before we return;
 

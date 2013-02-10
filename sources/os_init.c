@@ -12,12 +12,12 @@
 #include "mmu.h"
 
 // External functions used in here
-extern void OS_InitTimer();
-extern void S3C2440_SystemInit();
-extern OS_Queue g_ready_q;
-extern OS_Queue g_wait_q;
-extern OS_Queue g_ap_ready_q;
-extern OS_Queue g_block_q;
+extern void _OS_InitTimer();
+extern void _OS_SystemInit();
+extern _OS_Queue g_ready_q;
+extern _OS_Queue g_wait_q;
+extern _OS_Queue g_ap_ready_q;
+extern _OS_Queue g_block_q;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Initialization function for the OS
@@ -25,7 +25,7 @@ extern OS_Queue g_block_q;
 void OS_Init(int argc, char *argv[])
 {
 	// Call system initializatoin routine
-	S3C2440_SystemInit();
+	_OS_SystemInit();
 	
 	// Initialize Instruction and Data Caches
 #if ENABLE_INSTRUCTION_CACHE == 1
@@ -39,20 +39,20 @@ void OS_Init(int argc, char *argv[])
 #endif
 
 	// Start the scheduling timer
-	OS_InitTimer();
+	_OS_InitTimer();
 
 	// Initialize the global queue for timer waiting
-	OS_QueueInit(&g_ready_q); 
-	OS_QueueInit(&g_wait_q);
-	OS_QueueInit(&g_ap_ready_q);
-	OS_QueueInit(&g_block_q);
+	_OS_QueueInit(&g_ready_q); 
+	_OS_QueueInit(&g_wait_q);
+	_OS_QueueInit(&g_ap_ready_q);
+	_OS_QueueInit(&g_block_q);
 }
 
 
 ///////////////////////////////////////////////////////////////////////////////
 // Initialization of Interrupts processing
 ///////////////////////////////////////////////////////////////////////////////
-void OS_InitInterrupts()
+void _OS_InitInterrupts()
 {
 	UINT32 intsts = 0;
 	

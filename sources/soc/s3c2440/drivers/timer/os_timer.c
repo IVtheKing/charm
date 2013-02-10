@@ -22,14 +22,14 @@
 
 #define MAX_TIMER_COUNT		0
 
-UINT32 OS_Timer0ISRHook(void *arg);
-UINT32 OS_Timer1ISRHook(void *arg);
-UINT32 OS_SetBudgetTimer(UINT32 delay_in_us);
+UINT32 _OS_Timer0ISRHook(void *arg);
+UINT32 _OS_Timer1ISRHook(void *arg);
+UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Function to initialize the timers 0 &       1
 ///////////////////////////////////////////////////////////////////////////////
-void OS_InitTimer ()
+void _OS_InitTimer ()
 {
 	static BOOL initialized = 0;
 
@@ -47,8 +47,8 @@ void OS_InitTimer ()
 		rTCFG1 = (rTCFG1 & 0xffffff00) | (TIMER1_DIVIDER << 4) | TIMER0_DIVIDER;  // Mux=1/8 for Timer0 & Timer1
 		
 		// Set the interrupt handlers. This also unmasks that interrupt
-		OS_SetInterruptVector(OS_Timer0ISRHook, TIMER0_INT_VECTOR_INDEX);
-		OS_SetInterruptVector(OS_Timer1ISRHook, TIMER1_INT_VECTOR_INDEX);
+		OS_SetInterruptVector(_OS_Timer0ISRHook, TIMER0_INT_VECTOR_INDEX);
+		OS_SetInterruptVector(_OS_Timer1ISRHook, TIMER1_INT_VECTOR_INDEX);
 
 		// Set the initialized flag
 		initialized = 1;
@@ -58,7 +58,7 @@ void OS_InitTimer ()
 ///////////////////////////////////////////////////////////////////////////////
 // Timer 0 & 1 Interrupt handler
 ///////////////////////////////////////////////////////////////////////////////
-void Handle_TimerInterrupt(UINT32 timer)
+void _OS_TimerInterrupt(UINT32 timer)
 {
 	// TODO: This is bit early to stop the timer, somehow I should keep it running
 	// without it generating an interrupt. Otherwise there will be a drift in the clock.
@@ -73,7 +73,7 @@ void Handle_TimerInterrupt(UINT32 timer)
 ///////////////////////////////////////////////////////////////////////////////
 // Function to update the period in the timer
 ///////////////////////////////////////////////////////////////////////////////
-BOOL OS_UpdateTimer(UINT32 delay_in_us)
+BOOL _OS_UpdateTimer(UINT32 delay_in_us)
 {
 	UINT32 req_count = CONVERT_us_TO_TICKS(delay_in_us);
 	UINT32 cur_count;
@@ -107,7 +107,7 @@ BOOL OS_UpdateTimer(UINT32 delay_in_us)
 ///////////////////////////////////////////////////////////////////////////////
 // Sets a new timeout for the budget timer 
 ///////////////////////////////////////////////////////////////////////////////
-UINT32 OS_SetBudgetTimer(UINT32 delay_in_us)
+UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us)
 {
 	UINT32 req_count = CONVERT_us_TO_TICKS(delay_in_us);
 	UINT32 cur_count;
@@ -135,15 +135,7 @@ UINT32 OS_SetBudgetTimer(UINT32 delay_in_us)
 ///////////////////////////////////////////////////////////////////////////////
 // Converts the current timer count into micro seconds and returns.
 ///////////////////////////////////////////////////////////////////////////////
-UINT32 OS_GetTime()
+UINT32 _OS_GetTime(UINT32 timer)
 {
-	return CONVERT_TICKS_TO_us(rTCNTO0);
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// Get the timer value in microseconds 
-///////////////////////////////////////////////////////////////////////////////
-UINT32 OSGetTime()
-{
-	return CONVERT_TICKS_TO_us(rTCNTO1);
+	return CONVERT_TICKS_TO_us(timer ? rTCNTO1 : rTCNTO0);
 }

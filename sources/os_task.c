@@ -9,6 +9,7 @@
 
 #include "os_core.h"
 #include "os_queue.h"
+#include "os_timer.h"
 #include "util.h"
 
 // function prototype declaration
@@ -29,20 +30,19 @@ static BOOL ValidateNewThread(UINT32 period, UINT32 budget);
 static UINT32 g_task_id_counter = 0;
 static FP32 g_total_allocated_cpu = 0.0;
 
-extern OS_Queue g_ready_q;
-extern OS_Queue g_wait_q;
-extern OS_Queue g_ap_ready_q;
-extern OS_Queue g_block_q;
+extern _OS_Queue g_ready_q;
+extern _OS_Queue g_wait_q;
+extern _OS_Queue g_ap_ready_q;
+extern _OS_Queue g_block_q;
 extern volatile UINT64 g_global_time;	// This variable gets updated everytime the Timer ISR is called.
 extern volatile UINT64 g_next_wakeup_time; // This variable holds the next scheduled wakeup time in uSecs
-extern void OS_ReSchedule();
-extern void OS_SetAlarm(OS_PeriodicTask *task, UINT64 abs_time_in_us, BOOL is_new_job);
-extern UINT32 OSGetTime();
+extern void _OS_ReSchedule();
+extern void _OS_SetAlarm(OS_PeriodicTask *task, UINT64 abs_time_in_us, BOOL is_new_job);
 
-UINT32 *S3C2440_BuildTaskStack(UINT32 * stack_ptr, void (*task_function)(void *), void * arg, UINT32 system_mode);
+UINT32 *_OS_BuildTaskStack(UINT32 * stack_ptr, void (*task_function)(void *), void * arg, UINT32 system_mode);
 static void TaskEntryMain(void *pdata);
 static void AperiodicTaskEntry(void *pdata);
-void OS_ReSchedule();
+void _OS_ReSchedule();
 
 ///////////////////////////////////////////////////////////////////////////////
 // OS_CreatePeriodicTask - API to create periodic tasks
@@ -167,18 +167,18 @@ OS_Error OS_CreatePeriodicTask(
 	OS_EXIT_CRITICAL(intsts); 	// Exit the critical section
 
 	// Build a Stack for the new thread
-	task->top_of_stack = S3C2440_BuildTaskStack(task->top_of_stack, 
+	task->top_of_stack = _OS_BuildTaskStack(task->top_of_stack, 
 		TaskEntryMain, task, FALSE);
 
 	OS_ENTER_CRITICAL(intsts);	// Enter critical section
 
-	OS_QueueInsert(&g_wait_q, task, phase_shift_in_us);		
+	_OS_QueueInsert(&g_wait_q, task, phase_shift_in_us);		
 
 	OS_EXIT_CRITICAL(intsts); 	// Exit the critical section
 
-	if(OS_IsRunning)
+	if(_OS_IsRunning)
 	{
-		OS_ReSchedule();
+		_OS_ReSchedule();
 	}
 
   	return SUCCESS; 
@@ -230,7 +230,7 @@ OS_Error OS_CreateAperiodicTask(UINT16 priority,
 	task->stack = stack;
 	task->stack_size = stack_size;
 	task->top_of_stack = stack + stack_size; // Stack grows bottom up
-	task->top_of_stack = S3C2440_BuildTaskStack(task->top_of_stack, AperiodicTaskEntry, task, FALSE);
+	task->top_of_stack = _OS_BuildTaskStack(task->top_of_stack, AperiodicTaskEntry, task, FALSE);
 	task->task_function = task_entry_function;
 	task->pdata = pdata;
 	task->priority = priority;
@@ -245,12 +245,12 @@ OS_Error OS_CreateAperiodicTask(UINT16 priority,
 
 	OS_ENTER_CRITICAL(intsts); // Enter critical section
 	task->id = ++g_task_id_counter;
-	OS_QueueInsert(&g_ap_ready_q, task, priority); //add task to aperiodic wait queue
+	_OS_QueueInsert(&g_ap_ready_q, task, priority); //add task to aperiodic wait queue
 	OS_EXIT_CRITICAL(intsts); // Exit the critical section
 	
-	if(OS_IsRunning)
+	if(_OS_IsRunning)
 	{
-		OS_ReSchedule();
+		_OS_ReSchedule();
 	}
 
 	return SUCCESS;
@@ -300,7 +300,7 @@ static void TaskEntryMain(void *pdata)
 
 		// Suspend the current task. This task will be automatically 
 		// woken up by the alarm.
-		OS_QueueDelete(&g_ready_q, task);
+		_OS_QueueDelete(&g_ready_q, task);
 		if(task->alarm_time == g_next_wakeup_time)
 		{
 			// If the next wakeup time is same as the alarm time for the 
@@ -310,15 +310,15 @@ static void TaskEntryMain(void *pdata)
 		}
 		if(task->deadline == task->period)
 		{
-			OS_SetAlarm(task, task->alarm_time, FALSE);
+			_OS_SetAlarm(task, task->alarm_time, FALSE);
 		}
 		else
 		{
-			OS_SetAlarm(task, task->alarm_time + task->period - task->deadline, FALSE);
+			_OS_SetAlarm(task, task->alarm_time + task->period - task->deadline, FALSE);
 		}
 		OS_EXIT_CRITICAL(intsts);
 
-		OS_ReSchedule();	// Now call reschedule function
+		_OS_ReSchedule();	// Now call reschedule function
 	}
 }
 
@@ -333,13 +333,13 @@ static void AperiodicTaskEntry(void *pdata)
 	// If this function ever returns, just block this task by adding it to
 	// block q
 	OS_ENTER_CRITICAL(intsts);		
-	OS_QueueDelete(&g_ap_ready_q, task);
+	_OS_QueueDelete(&g_ap_ready_q, task);
 
 	// Insert into block q
-	OS_QueueInsert(&g_block_q, task, task->priority);
+	_OS_QueueInsert(&g_block_q, task, task->priority);
 	OS_EXIT_CRITICAL(intsts);
 
-	OS_ReSchedule();	// Now call reschedule function
+	_OS_ReSchedule();	// Now call reschedule function
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -360,7 +360,7 @@ UINT64 OS_GetThreadElapsedTime()
 		if(task->type == PERIODIC_TASK)
 		{	
 	       OS_ENTER_CRITICAL(intsts); // Enter the critical section		
-		   thread_elapsed_time = task->accumulated_budget + OSGetTime();
+		   thread_elapsed_time = task->accumulated_budget + _OS_GetTime(1);
 		   OS_EXIT_CRITICAL(intsts); // Exit the critical section		
 		}	
 	}

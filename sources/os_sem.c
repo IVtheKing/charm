@@ -11,10 +11,10 @@
 #include "os_sem.h"
 
 extern volatile void * g_current_task;
-extern OS_Queue g_ready_q;
-extern OS_Queue g_ap_ready_q;
-extern OS_Queue g_ap_wait_q;
-extern void OS_ReSchedule();
+extern _OS_Queue g_ready_q;
+extern _OS_Queue g_ap_ready_q;
+extern _OS_Queue g_ap_wait_q;
+extern void _OS_ReSchedule();
 
 OS_Error OS_SemInit(OS_Sem *sem, INT16 pshared, UINT32 value)
 {
@@ -23,8 +23,8 @@ OS_Error OS_SemInit(OS_Sem *sem, INT16 pshared, UINT32 value)
 
 	sem->count = value;
 	//OS_InitQ(&sem->queue);	
-	OS_QueueInit(&sem->periodic_task_queue);
-	OS_QueueInit(&sem->aperiodic_task_queue);
+	_OS_QueueInit(&sem->periodic_task_queue);
+	_OS_QueueInit(&sem->aperiodic_task_queue);
 	return SUCCESS;
 }
 
@@ -47,16 +47,16 @@ OS_Error OS_SemWait(OS_Sem *sem)
 			//block the thread			
 			if(cur_task->type == PERIODIC_TASK)
 			{
-				OS_QueueDelete(&g_ready_q, (void*)cur_task); //delete the current task from ready tasks queue
-				OS_QueueInsert(&sem->periodic_task_queue, (void*)cur_task, cur_task->alarm_time); //add the current task to the semaphore's blocked queue for periodic tasks
+				_OS_QueueDelete(&g_ready_q, (void*)cur_task); //delete the current task from ready tasks queue
+				_OS_QueueInsert(&sem->periodic_task_queue, (void*)cur_task, cur_task->alarm_time); //add the current task to the semaphore's blocked queue for periodic tasks
 			}
 			else
 			{
-				OS_QueueDelete(&g_ap_ready_q, (void*)cur_task); //delete the current task from ready tasks queue
-				OS_QueueInsert(&sem->aperiodic_task_queue, (void*)cur_task, cur_task->alarm_time); //add the current task to the semaphore's blocked queue for aperiodic tasks
+				_OS_QueueDelete(&g_ap_ready_q, (void*)cur_task); //delete the current task from ready tasks queue
+				_OS_QueueInsert(&sem->aperiodic_task_queue, (void*)cur_task, cur_task->alarm_time); //add the current task to the semaphore's blocked queue for aperiodic tasks
 			}
 			OS_EXIT_CRITICAL(intsts);
-			OS_ReSchedule();			
+			_OS_ReSchedule();			
 				
 		}	
 		else
@@ -85,17 +85,17 @@ OS_Error OS_SemPost(OS_Sem *sem)
 	if(sem->count == 0)
 	{
 		//unblock a task and remove from blocked queues		
-		OS_QueueGet(&sem->periodic_task_queue, (void**)&task, &key);//remove from the semaphore's blocked queue for periodic tasks
+		_OS_QueueGet(&sem->periodic_task_queue, (void**)&task, &key);//remove from the semaphore's blocked queue for periodic tasks
 		if(task)//periodic task queue is not empty
 		{
-			OS_QueueInsert(&g_ready_q,(void*)task,key);//place in the periodic task queue					
+			_OS_QueueInsert(&g_ready_q,(void*)task,key);//place in the periodic task queue					
 		}
 		else//unblock an aperiodic job
 		{
-			OS_QueueGet(&sem->aperiodic_task_queue, (void**)&task, &key);//remove from the semaphore's blocked queue for aperiodic tasks
+			_OS_QueueGet(&sem->aperiodic_task_queue, (void**)&task, &key);//remove from the semaphore's blocked queue for aperiodic tasks
 			if(task)//aperiodic task queue is not empty
 			{
-				OS_QueueInsert(&g_ap_ready_q,(void*)task,key);//place in the periodic task queue					
+				_OS_QueueInsert(&g_ap_ready_q,(void*)task,key);//place in the periodic task queue					
 			}
 		}
 	}
@@ -103,7 +103,7 @@ OS_Error OS_SemPost(OS_Sem *sem)
 	OS_EXIT_CRITICAL(intsts);
 	if(task)
 	{
-		OS_ReSchedule();
+		_OS_ReSchedule();
 	}
 
 	return SUCCESS;
@@ -115,8 +115,8 @@ OS_Error OS_SemDestroy(OS_Sem *sem)
 		return ARGUMENT_ERROR;
 
 	sem->count = 0;
-	OS_QueueInit(&sem->periodic_task_queue);//set pointers to NULL
-	OS_QueueInit(&sem->aperiodic_task_queue);//set pointers to NULL
+	_OS_QueueInit(&sem->periodic_task_queue);//set pointers to NULL
+	_OS_QueueInit(&sem->aperiodic_task_queue);//set pointers to NULL
 	return SUCCESS;
 }
 

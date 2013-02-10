@@ -310,8 +310,8 @@ _enable_interrupt:
 @ TODO: More initializations if needed
 @-------------------------------------------------------------------------------
 
-	.global S3C2440_SystemInit
-S3C2440_SystemInit:
+	.global _OS_SystemInit
+_OS_SystemInit:
 
 	@ Update _SVC_STACK_TOP_
 	ldr		r2,=_SVC_STACK_TOP_

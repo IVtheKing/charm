@@ -24,39 +24,39 @@
 #include "os_core.h"  // For OS_Error definition
 
 // Typedef for Queue node
-typedef struct OS_QueueNode OS_QueueNode;
-struct OS_QueueNode
+typedef struct _OS_QueueNode _OS_QueueNode;
+struct _OS_QueueNode
 {	
-	volatile OS_QueueNode * next;   
+	volatile _OS_QueueNode * next;   
 	volatile UINT64 key;				
 };
 
 // Public typedefs
 typedef struct
 {
-	volatile OS_QueueNode * head;
-	volatile OS_QueueNode * tail;
+	volatile _OS_QueueNode * head;
+	volatile _OS_QueueNode * tail;
 	volatile UINT32 count;
-} OS_Queue;
+} _OS_Queue;
 
 ///////////////////////////////////////////////////////////////////////////////
 // Queue manipulaion function
 ///////////////////////////////////////////////////////////////////////////////
 
 // Function to initialize the queue. 					 
-OS_Error OS_QueueInit(OS_Queue * q);
+OS_Error _OS_QueueInit(_OS_Queue * q);
 
 // Function to insert an element into the queue. The key value determines the 
 // location at which it will be inserted. This is a sorted queue on key value.
-OS_Error OS_QueueInsert(OS_Queue * q, void * item, UINT64 key);
+OS_Error _OS_QueueInsert(_OS_Queue * q, void * item, UINT64 key);
 
 // Function to delete an item from the queue.
-OS_Error OS_QueueDelete(OS_Queue * q, void * item);
+OS_Error _OS_QueueDelete(_OS_Queue * q, void * item);
 
 // Function to get the first element from the Queue. 
-OS_Error OS_QueueGet(OS_Queue * q, void ** item, UINT64 * key);
+OS_Error _OS_QueueGet(_OS_Queue * q, void ** item, UINT64 * key);
 
 // Function to peek the first element from the Queue. 
-OS_Error OS_QueuePeek(OS_Queue * q, void ** item, UINT64 * key);
+OS_Error _OS_QueuePeek(_OS_Queue * q, void ** item, UINT64 * key);
 
 #endif // _OS_QUEUE_H

@@ -15,8 +15,8 @@
 typedef struct OS_Sem
 {
 	INT32 count;
-	OS_Queue periodic_task_queue;    
-	OS_Queue aperiodic_task_queue;  
+	_OS_Queue periodic_task_queue;    
+	_OS_Queue aperiodic_task_queue;  
     
 } OS_Sem;
 

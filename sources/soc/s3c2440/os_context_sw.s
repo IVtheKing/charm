@@ -57,10 +57,10 @@ SYSMODE     = 0x1f
 MODEMASK    = 0x1f
 INTMASK     = 0xc0
 
-.global	S3C2440_BuildTaskStack
-.global S3C2440_ContextRestore
-.global S3C2440_ContextSw
-.global	OS_ReSchedule
+.global	_OS_BuildTaskStack
+.global _OS_ContextRestore
+.global _OS_ContextSw
+.global	_OS_ReSchedule
 
 .global	g_current_task
 .global	_SVC_STACK_TOP_
@@ -70,7 +70,7 @@ INTMASK     = 0xc0
 @----------------------------------------------------------------------------
 @ Build Initial stack for the thread
 @----------------------------------------------------------------------------
-S3C2440_BuildTaskStack:		@ S3C2440_BuildTaskStack(UINT32 * stack_ptr (R0), 
+_OS_BuildTaskStack:		@ _OS_BuildTaskStack(UINT32 * stack_ptr (R0), 
 							@ void (*task_function)(void *) (R1), void * arg(R2), bool system_task(r3));
 	
 	@ TODO: Do you really need LR register as part of context? Note: This may be to help GDB show right callstack.
@@ -172,13 +172,13 @@ _IRQHandler_:
 	
 	@ Restore the new task (fall to below code)
 
-S3C2440_ContextRestore:		@ void C6713_ContextRestore(new_thread_pointer)
+_OS_ContextRestore:		@ void C6713_ContextRestore(new_thread_pointer)
 
 	@ Disable Interrupt and retain the SVC mode
 	mov		r1, #NOINT|SVCMODE
 	msr		cpsr_c, r1 
 
-S3C2440_ContextRestore_safe:
+_OS_ContextRestore_safe:
 	
 	@ Move the current thread pointer into r1
 	ldr		r1, =g_current_task	
@@ -191,24 +191,24 @@ S3C2440_ContextRestore_safe:
 	ldmfd	r2!, {r1}
 	
 	cmp		r1, #SOLICITED_STACK_TYPE
-	beq		S3C2440_SolStackRestore
+	beq		_OS_SolStackRestore
 
 	cmp		r1, #INTERRUPT_STACK_TYPE
-	beq		S3C2440_IntStackRestore
+	beq		_OS_IntStackRestore
 
 	cmp		r1, #ZERO_CONTEXT_STACK_TYPE
-	beq		S3C2440_ZeroContextRestore
+	beq		_OS_ZeroContextRestore
 
 	@ Possible stack corruption
-S3C2440_StackTypeError:
+_OS_StackTypeError:
 	@ TODO: Print some useful message for the stack corruption
-	b	S3C2440_StackTypeError
+	b	_OS_StackTypeError
 
 @----------------------------------------------------------------------------
 @ Solicited Stack Restore
 @----------------------------------------------------------------------------
 
-S3C2440_SolStackRestore:
+_OS_SolStackRestore:
 
 	ldmfd 	r2!, {r0}					@ Pop CPSR
 	msr 	spsr_cxsf, r0				@ Save into SPSR
@@ -221,7 +221,7 @@ S3C2440_SolStackRestore:
 @ Interrupt Stack Restore
 @----------------------------------------------------------------------------
 
-S3C2440_IntStackRestore:
+_OS_IntStackRestore:
 
 	ldmfd 	r2!, {r0}					@ Pop CPSR	
 	msr 	spsr_cxsf, r0				@ Save into SPSR
@@ -233,7 +233,7 @@ S3C2440_IntStackRestore:
 @----------------------------------------------------------------------------
 @ Zero Context Restore
 @----------------------------------------------------------------------------
-S3C2440_ZeroContextRestore:
+_OS_ZeroContextRestore:
 
 	ldmfd 	r2!, {r0}					@ Pop CPSR
 	msr 	spsr_cxsf, r0				@ Save into SPSR
@@ -248,7 +248,7 @@ S3C2440_ZeroContextRestore:
 @ to point to the new thread
 @-------------------------------------------------------------------------------
 
-S3C2440_ContextSw:	@ void C6713_ContextSw(new_thread_pointer)
+_OS_ContextSw:	@ void C6713_ContextSw(new_thread_pointer)
 
 	@ Disable Interrupt
 	mrs		r1, CPSR		@ Read CPSR into r1
@@ -273,7 +273,7 @@ S3C2440_ContextSw:	@ void C6713_ContextSw(new_thread_pointer)
 	streq	sp,[r2]		@ Update the SVC Stack Top Pointer if task is NULL
 	
 	@ Restore the new task
-	b		S3C2440_ContextRestore_safe
+	b		_OS_ContextRestore_safe
 
 @-------------------------------------------------------------------------------
 @ A placeholder for tasks that have finished. 
@@ -283,7 +283,7 @@ CompletedTaskTrap:
 	@ TODO: Add support for thrashing finished tasks and its stack.
 	@ Currently it simply yields to other tasks
 
-	bl	OS_ReSchedule
+	bl	_OS_ReSchedule
 	b	CompletedTaskTrap
 	
 	.LTORG   

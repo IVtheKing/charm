@@ -10,10 +10,10 @@
 #include "os_core.h"
 
 // A #define redefinition of OSW_QueueNode for ease of use
-typedef OS_QueueNode Node;  
+typedef _OS_QueueNode Node;  
 
 // Function to initialize the queue 								 
-OS_Error OS_QueueInit(OS_Queue * q)
+OS_Error _OS_QueueInit(_OS_Queue * q)
 {
 	if(!q) return ARGUMENT_ERROR;
 	q->head = q->tail = NULL;
@@ -24,7 +24,7 @@ OS_Error OS_QueueInit(OS_Queue * q)
 
 // Function to insert an element into the queue. The key value determines the 
 // location at which it will be inserted. This is a sorted queue on key value.
-OS_Error OS_QueueInsert(OS_Queue * q, void * item, UINT64 key)
+OS_Error _OS_QueueInsert(_OS_Queue * q, void * item, UINT64 key)
 {
 	volatile Node *node, *new_node, *prev = 0;
     if(!q) return ARGUMENT_ERROR;
@@ -55,7 +55,7 @@ OS_Error OS_QueueInsert(OS_Queue * q, void * item, UINT64 key)
 }
 
 // Function to insert an element into the tail end of the queue.
-OS_Error OS_QueueInsertTail(OS_Queue * q, void * item)
+OS_Error _OS_QueueInsertTail(_OS_Queue * q, void * item)
 {
 	volatile Node *new_node;
     if(!q) return ARGUMENT_ERROR;
@@ -77,7 +77,7 @@ OS_Error OS_QueueInsertTail(OS_Queue * q, void * item)
 	return SUCCESS;
 }
 // Function to delete an item from the queue.
-OS_Error OS_QueueDelete(OS_Queue * q, void * item)
+OS_Error _OS_QueueDelete(_OS_Queue * q, void * item)
 {
     volatile Node * node, * prev = 0;
 	volatile Node * item_node = (Node*)item;
@@ -110,7 +110,7 @@ OS_Error OS_QueueDelete(OS_Queue * q, void * item)
 }
 
 // Function to get the first element from the Queue. 
-OS_Error OS_QueueGet(OS_Queue * q, void ** item, UINT64 * key)
+OS_Error _OS_QueueGet(_OS_Queue * q, void ** item, UINT64 * key)
 {
     volatile Node * node;
     if(!q) return ARGUMENT_ERROR;
@@ -132,7 +132,7 @@ OS_Error OS_QueueGet(OS_Queue * q, void ** item, UINT64 * key)
 	return SUCCESS;
 }
 
-OS_Error OS_QueuePeek(OS_Queue * q, void ** item, UINT64 * key)
+OS_Error _OS_QueuePeek(_OS_Queue * q, void ** item, UINT64 * key)
 {
 	if(!q) return ARGUMENT_ERROR;	
 	if(item) *item = (void*) q->head;
