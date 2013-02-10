@@ -20,8 +20,6 @@
 #define CONVERT_us_TO_TICKS(us)		((((UINT64)TIMER01_TICK_RATE * (us)) + (1000000-1)) / 1000000)	
 #define CONVERT_TICKS_TO_us(tick)	((((tick) * 1000000ull) + (TIMER01_TICK_RATE - 1)) / TIMER01_TICK_RATE)
 
-#define MAX_TIMER_COUNT		0
-
 UINT32 _OS_Timer0ISRHook(void *arg);
 UINT32 _OS_Timer1ISRHook(void *arg);
 UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us);

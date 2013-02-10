@@ -42,7 +42,7 @@ CAMDIVN		=  0x4C000018	  @Camera clock divider register
 SRCPND   	=  0x4a000000    @Interrupt r=est status
 INTMOD   	=  0x4a000004    @Interrupt mode control
 INTMSK   	=  0x4a000008    @Interrupt mask control
-PRIORITY 	=  0x4a00000c    @IRQ priority control           <-- May 06, 2002 SOP
+PRIORITY 	=  0x4a00000c    @IRQ priority control
 INTPND   	=  0x4a000010    @Interrupt request status
 INTOFFSET	=  0x4a000014    @Interruot request source offset
 SUSSRCPND	=  0x4a000018    @Sub source pending

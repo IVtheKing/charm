@@ -46,7 +46,6 @@
 #define TASK_MAX_PERIOD		MAX_TIMER_INTERVAL_uS
 #define TASK_MAX_BUDGET		MAX_TIMER_INTERVAL_uS
 
-
 // Debug & Info related
 #define OS_ENABLE_CPU_STATS			0		// TODO: Enable CPU Stats
 #define OS_WITH_VALIDATE_TASK		1
