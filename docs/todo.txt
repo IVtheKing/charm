@@ -1,0 +1,5 @@
+
+
+1. Enable Instruction and Data cache
+2. There is timebase in the processor. Read about this and incorporate into the OS
+3. Reorder the folders, create a folder called Includes and put all the header files there

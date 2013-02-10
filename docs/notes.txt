@@ -1,0 +1,36 @@
+Things to do
+--------------------------------------------------------------------------
+1. DONE: At context store and restore, interrupts should be disabled
+2. DONE: In function OSTimer1ISR, after the S3C2440_ContextStore call, the
+	function continues to run on the same threads context. This is not entirely correct
+	We will have to restore it to system context before we return;
+
+3. DONE: There may be many places where we need the mutual exclusion. So review the entire code
+
+4. Implement the logic for measuring the CPU utilization
+
+5. DONE: Think if the logic to consider the next thread from the OS_Reschedule function is
+	correct or not. You might miss some tasks which happened to be placed before the
+	current task?
+
+6. DONE: Implement the Budget timer functionality fully
+
+7. DONE: Consider the case when deadline < period
+
+8. Implement Sleep
+
+9. Implement Semaphore for the next aperiodic tasks
+
+10. Debug the problem with D & E on the target
+
+11. For many of the OS private functions, I don't have a common header file. Every source file redeclares functions as extern.
+
+12. Implement sleep / wake functionality
+
+13. Have code to copy the NAND content into memory and run if needed
+
+14. Initialize memory controller
+
+Limitations:
+-------------------------------------------------------------
+1. No nested interrupt support

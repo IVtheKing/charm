@@ -1,0 +1,183 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1187\cocoasubrtf340
+{\fonttbl\f0\fswiss\fcharset0 ArialMT;\f1\froman\fcharset0 Times-Roman;}
+{\colortbl;\red255\green255\blue255;\red0\green0\blue135;\red16\green60\blue192;}
+\margl1440\margr1440\vieww19580\viewh12720\viewkind0
+\deftab720
+\pard\pardeftab720
+
+\f0\fs30 \cf0 Using OpenOCD on Mac
+\f1\fs32 \
+
+\f0\fs30 ---------------------------------------------------------------------------------------------------------------
+\f1\fs32 \
+\
+
+\f0\fs30 Download source code from:
+\f1\fs32 \
+
+\f0\fs30 -------------------------------------
+\f1\fs32 \
+\pard\pardeftab720
+{\field{\*\fldinst{HYPERLINK "http://sourceforge.net/projects/openocd"}}{\fldrslt 
+\f0\fs30 \cf2 \ul \ulc2 http://sourceforge.net/projects/openocd}}\
+\
+\
+\pard\pardeftab720
+
+\f0\fs30 \cf0 libusb package
+\f1\fs32 \
+
+\f0\fs30 --------------------
+\f1\fs32 \
+
+\f0\fs30 The JLink build requires libusb package for Mac. Install both Binary and SDK for libusb for Mac from. Usually you will have to build it from the source but this link has provided pre-built package.
+\f1\fs32 \
+\pard\pardeftab720
+{\field{\*\fldinst{HYPERLINK "http://www.ellert.se/twain-sane/"}}{\fldrslt 
+\f0\fs30 \cf2 \ul \ulc2 http://www.ellert.se/twain-sane/}}\
+\
+\pard\pardeftab720
+
+\f0\fs30 \cf0 Building for JLink
+\f1\fs32 \
+
+\f0\fs30 -----------------------
+\f1\fs32 \
+
+\f0\fs30 ./configure --enable-jlink
+\f1\fs32 \
+
+\f0\fs30 make
+\f1\fs32 \
+
+\f0\fs30 sudo make install
+\f1\fs32 \
+\
+
+\f0\fs30 Configuration:
+\f1\fs32 \
+
+\f0\fs30 -------------------
+\f1\fs32 \
+
+\f0\fs30 I have already created \'91openocd.cfg\'92 with all necessary configuration information (from scratch) for the TQ2440 board. This has all NOR/NAND flash info as well. 
+\f1\fs32 \
+
+\f0\fs30 Open this file and study to understand what options have been used.
+\f1\fs32 \
+\
+\pard\pardeftab720
+{\field{\*\fldinst{HYPERLINK "http://openocd.sourceforge.net/doc/html/Config-File-Guidelines.html"}}{\fldrslt 
+\f0\fs30 \cf3 \ul \ulc3 http://openocd.sourceforge.net/doc/html/Config-File-Guidelines.html}}\
+\
+\pard\pardeftab720
+
+\f0\fs30 \cf0 Running:
+\f1\fs32 \
+
+\f0\fs30 -------------
+\f1\fs32 \
+
+\f0\fs30 - Connect the JLink to your Mac
+\f1\fs32 \
+
+\f0\fs30 - Connect JLink to the board
+\f1\fs32 \
+
+\f0\fs30 - Put the board in the \'91NOR Flash\'92 boot mode using F-SEL switch
+\f1\fs32 \
+
+\f0\fs30 - If you want, connect the serial line to Mac using USB-Serial cable
+\f1\fs32 \
+
+\f0\fs30 - Put \'91my\'92 configuration file \'91openocd.cfg\'92 file in the same folder as openocd utility
+\f1\fs32 \
+
+\f0\fs30 - run the openocd tool with \'91./openocd\'92. This accesses the \'91openocd.cfg\'92 file from the current folder
+\f1\fs32 \
+
+\f0\fs30 - In another command window, do \'91telnet localhost 4444\'92. This window can be used to type openocd commands
+\f1\fs32 \
+
+\f0\fs30 - In another window, start \'91arm-elf-gdb\'92. Then do \'91target remote localhost:3333\'92. This should open the gdb connection to the board
+\f1\fs32 \
+
+\f0\fs30 $arm-elf-gdb /Users/b_bhat/TQ2440/NanoOS/build/debug-tq2440/tq2440.elf
+\f1\fs32 \
+\
+
+\f0\fs30 Commands:
+\f1\fs32 \
+
+\f0\fs30 -----------------
+\f1\fs32 \
+\pard\pardeftab720
+
+\f0\b\fs30 \cf0 Flashing a program into NOR flash
+\f1\b0\fs32 \
+\pard\pardeftab720
+
+\f0\fs30 \cf0 - Put the board into NOR Boot mode
+\f1\fs32 \
+
+\f0\fs30 - Start openocd server as described above
+\f1\fs32 \
+
+\f0\fs30 - Telnet into localhost port 4444
+\f1\fs32 \
+
+\f0\fs30 Use the command:
+\f1\fs32 \
+
+\f0\fs30 >flash write_image erase unlock /Users/b_bhat/TQ2440/NanoOS/build/debug-tq2440/boot.elf 0 elf
+\f1\fs32 \
+
+\f0\fs30 auto erase enabled
+\f1\fs32 \
+
+\f0\fs30 auto unlock enabled
+\f1\fs32 \
+
+\f0\fs30 protect: cfi primary command set 2 unsupported
+\f1\fs32 \
+
+\f0\fs30 wrote 16384 bytes from file /Users/b_bhat/TQ2440/NanoOS/build/debug-tq2440/boot.elf in 2.184759s (7.323 KiB/s)
+\f1\fs32 \
+\
+\pard\pardeftab720
+
+\f0\b\fs30 \cf0 Loading program into SDRAM
+\f1\b0\fs32 \
+\pard\pardeftab720
+
+\f0\fs30 \cf0 Same initial steps as above
+\f1\fs32 \
+
+\f0\fs30 >load_image /Users/b_bhat/TQ2440/NanoOS/build/debug-tq2440/tq2440.elf 0x00000000 elf
+\f1\fs32 \
+
+\f0\fs30 13820 bytes written at address 0x30000000
+\f1\fs32 \
+
+\f0\fs30 downloaded 13820 bytes in 0.751106s (17.968 KiB/s)
+\f1\fs32 \
+\
+
+\f0\fs30 Just after loading the image if you want to do one step to help gdb, then you can use
+\f1\fs32 \
+
+\f0\fs30 load_image /Users/b_bhat/TQ2440/NanoOS/build/debug-tq2440/tq2440.elf 0x00000000 elf
+\b ; step
+\f1\b0\fs32 \
+\
+\
+
+\f0\fs30 References:
+\f1\fs32 \
+
+\f0\fs30 ---------------
+\f1\fs32 \
+\pard\pardeftab720
+{\field{\*\fldinst{HYPERLINK "http://www.ethernut.de/en/hardware/enut3/openocd.html"}}{\fldrslt 
+\f0\fs30 \cf2 \ul \ulc2 http://www.ethernut.de/en/hardware/enut3/openocd.html}}\
+}

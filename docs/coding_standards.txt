@@ -1,0 +1,57 @@
+///////////////////////////////////////////////////////////////////////////////
+//	
+//						Copyright 2009 xxxxxxx, xxxxxxx
+//	File:	CodingStandards.txt
+//	Author:	Bala B. (bhat.balasubramanya@gmail.com)
+//	Description: Coding Standards
+//	
+///////////////////////////////////////////////////////////////////////////////
+
+
+File Structure
+---------------------------------------
+1. Use the standard template for the files with the copyright information
+2. All functions should be preceded by function header block
+
+
+Constants, Macros and Enums
+--------------------
+1. All Constants, Macros and Enums should be in upper case only
+
+
+Built In data types
+-----------------------------------
+Only use the data types defined in the os_types.h and nothing else.
+
+
+Variable Names & Structure Members
+-----------------------------------
+
+1. All variable names and Structure Members should be in lower case
+2. Individual words in the variable names or Structure Members should be separated by underscore
+3. The abbrevations should be in upper case within the variable name. For example 'OS' should be in upper case.
+4. Entities which are private to the OS implementation and not intended to be exposed should be declared as 'static'.
+5. If a global variable is exposed to the programmers, then they should begin with 'OS_' and should have first character in individual words capitalized.
+6. Other global variables should be named starting with 'g_'
+
+
+Data Types & Function Names
+-----------------------------------
+1. Should begin with upper case letter
+2. Individual Words should begin with Upper case letter not underscore.
+3. Other characters should be in lower case
+4. If there is a abbrevation, they should be in upper case and seperated by '_'.
+5. All OS related data types and functions which are exposed as an API should be prefixed by 'OS_'.
+6. Functions which are private to the OS implementation and not intended to be exposed should be declared as 'static'.
+7. Non exposed OS functions should not begin with 'OS_' prefix.
+8. The Function names, should begin with the function 'verb'
+
+Comments
+-----------------------------------
+1. Only use '//' for commenting in C & ';' in assembly. Do not use block commenting like '/*    */'
+
+
+Header files
+---------------------------------
+1. Always use protection for multiple inclusion within the header file. 
+2. The protection macro should begin with '_' followed by the file name with extension with all in upper case. 
