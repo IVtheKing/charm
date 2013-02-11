@@ -18,23 +18,33 @@
 #define PCLK (HCLK/2)				// APB Clock	67.5 MHz
 #define UCLK (48000000)				// USB Clock
 
-#define	TIMER_PRESCALAR_0	(0xff)	// PCLK/256
-#define	TIMER0_DIVIDER		(0x02)	// PCLK/PRESCALAR0/8
-#define	TIMER1_DIVIDER		(0x02)	// PCLK/PRESCALAR0/8
-#define	TIMER01_TICK_RATE	(PCLK/(TIMER_PRESCALAR_0+1)/8)		// Resolution 30.340 uSec per tick
-#define	MAX_TIMER_INTERVAL_uS	1988439		// TIMER01_TICK_RATE/65535 = 1.988439832514109 seconds
+#define	TIMER_PRESCALAR_0	(0x3f)	// PCLK/64
+#define	TIMER0_DIVIDER		(0x00)	// PCLK/PRESCALAR0/2
+#define	TIMER1_DIVIDER		(0x00)	// PCLK/PRESCALAR0/2
+#define	TIMER01_TICK_RATE	(PCLK/(TIMER_PRESCALAR_0+1)/2)		// Resolution 1.8963 uSec per tick
+
+// (65535 * 1000000) / TIMER01_TICK_RATE = 124273.78 uSec. Lets use 100ms for this.
+// This way there will be at least one interrupt every 100ms
+#define	MAX_TIMER0_INTERVAL_uS	100000		
+
+// (65535 * 1000000) / TIMER01_TICK_RATE = 124273.78 uSec. Lets use 120ms for this.
+// Note that this value should be > MAX_TIMER0_INTERVAL_uS in order to prevent race between
+// timer0 & timer1 interrupts. 
+#define	MAX_TIMER1_INTERVAL_uS	120000		
 
 // Instruction and Data Cache related
 #define ENABLE_INSTRUCTION_CACHE	1
 #define ENABLE_DATA_CACHE			1
 
-// Task related
+// Task related configuration parameters
 #define MIN_PRIORITY				255
 #define OS_IDLE_TASK_STACK_SIZE		0x40		// In Words
 #define OS_STAT_TASK_STACK_SIZE		0x40		// In Words
 #define OS_WITH_TASK_NAME			1
 #define OS_TASK_NAME_SIZE			8
-#define OS_FIRST_SCHED_DELAY		10000	// Time for the first scheduling interrupt
+
+// Time for the first scheduling interrupt to begin. This should be <= MAX_TIMER0_INTERVAL_uS
+#define OS_FIRST_SCHED_DELAY		10000
 
 // Following values depend a lot on the timer resolution which is not very good in this case
 #define TASK_MIN_PERIOD		100	// 100 uSec
@@ -43,8 +53,7 @@
 
 // TODO: I should handle the case where these are bigger values. Should be possible by taking care while setting 
 // timers
-#define TASK_MAX_PERIOD		MAX_TIMER_INTERVAL_uS
-#define TASK_MAX_BUDGET		MAX_TIMER_INTERVAL_uS
+#define TASK_MAX_BUDGET		MAX_TIMER1_INTERVAL_uS
 
 // Debug & Info related
 #define OS_ENABLE_CPU_STATS			0		// TODO: Enable CPU Stats

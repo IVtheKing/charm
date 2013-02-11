@@ -8,6 +8,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "os_timer.h"
+#include "os_core.h"
 #include "soc.h"
 
 //The S3C2440A has five 16-bit timers. Timer 0, 1, 2, and 3 have Pulse Width Modulation (PWM) function. 
@@ -73,32 +74,41 @@ void _OS_TimerInterrupt(UINT32 timer)
 ///////////////////////////////////////////////////////////////////////////////
 BOOL _OS_UpdateTimer(UINT32 delay_in_us)
 {
-	UINT32 req_count = CONVERT_us_TO_TICKS(delay_in_us);
-	UINT32 cur_count;
-	
-	// Get the Terminal Value and the Current Counter
-	cur_count = rTCNTO0;	 
-	
 	if(delay_in_us == 0)
 	{
+		// Disable the timer
 		rTCNTB0 = 0; // The Timer is already in Hold State. Just reset the count to zero
 		rTCON = (rTCON & (~0x0f)) | 0x02;
 	}
-	else if(req_count > cur_count)
-	{
-		// The requested timeout is in the future. Update the terminal Count
-		// and just resume counting
-		rTCNTB0 = req_count;
-		
-		// Configure these as one shot timer and auto reload
-		rTCON = (rTCON & (~0x0f)) | 0x02;
-		rTCON = (rTCON & (~0x0f)) | 0x09;	// Timer 0 Start | auto reload
-	}
 	else
 	{
-		return 0; // The requested timeout has already passed or too close.
+		UINT32 req_count = CONVERT_us_TO_TICKS(delay_in_us);
+	
+		// Get the timer count that has already elapsed since the actual timer interrupt
+		UINT32 elapsed_count = (rTCNTB0 - rTCNTO0);
+		
+		if(req_count > elapsed_count) 
+		{
+			// The requested timeout is in the future. Update the terminal Count
+			// and just resume counting
+			rTCNTB0 =  (req_count - elapsed_count);
+		}
+		else
+		{
+			// Highly undesirable situation. You may need to adjust the task timings
+			Syslog64("KERNEL WARNING: Requested timeout is in the past ", req_count);
+			
+			// Request a very small timeout so that we will be interrupted immediately.
+			rTCNTB0 = 1;	
+		}
+			
+		// Inform that the Timer 0 Buffer has changed
+		rTCON = (rTCON & (~0x0f)) | 0x02;
+		
+		// Timer 0 Start | auto reload
+		rTCON = (rTCON & (~0x0f)) | 0x09;	
 	}
-
+	
 	return 1;
 }
 
@@ -108,26 +118,31 @@ BOOL _OS_UpdateTimer(UINT32 delay_in_us)
 UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us)
 {
 	UINT32 req_count = CONVERT_us_TO_TICKS(delay_in_us);
-	UINT32 cur_count;
-	
-	// Get the Terminal Value and the Current Counter
-	cur_count = CONVERT_TICKS_TO_us(rTCNTO1);	 
+	UINT32 cur_count = rTCNTO1;
 	
 	if(delay_in_us == 0)
 	{
+		// Disable the timer
 		rTCNTB1 = 0; // The Timer is already in Hold State. Just reset the count to zero
 		rTCON = (rTCON & (~0xf00)) | 0x200;
 	}
 	else 
 	{
+		// Get the timer count that has already elapsed since the actual timer interrupt
+		UINT32 elapsed_count = (rTCNTB1 - cur_count);
+
 		// The requested timeout is in the future. Update the terminal Count
 		// and just resume counting
-		rTCNTB1 = req_count;
+		rTCNTB1 = (req_count > elapsed_count) ? (req_count - elapsed_count) : 1;
+		
+		// Inform that the Timer 1 Buffer has changed
 		rTCON = (rTCON & (~0xf00)) | 0x200;
-		rTCON = (rTCON & (~0xf00)) | 0x900;		// Timer 1 Start | auto reload
+		
+		// Timer 1 Start | auto reload
+		rTCON = (rTCON & (~0xf00)) | 0x900;		
 	}
 
-	return cur_count;
+	return CONVERT_TICKS_TO_us(cur_count);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

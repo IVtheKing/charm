@@ -37,7 +37,7 @@ extern _OS_Queue g_block_q;
 extern volatile UINT64 g_global_time;	// This variable gets updated everytime the Timer ISR is called.
 extern volatile UINT64 g_next_wakeup_time; // This variable holds the next scheduled wakeup time in uSecs
 extern void _OS_ReSchedule();
-extern void _OS_SetAlarm(OS_PeriodicTask *task, UINT64 abs_time_in_us, BOOL is_new_job);
+extern void _OS_SetAlarm(OS_PeriodicTask *task, UINT64 abs_time_in_us, BOOL is_new_job, BOOL update_timer);
 
 UINT32 *_OS_BuildTaskStack(UINT32 * stack_ptr, void (*task_function)(void *), void * arg, UINT32 system_mode);
 static void TaskEntryMain(void *pdata);
@@ -86,11 +86,6 @@ OS_Error OS_CreatePeriodicTask(
 	if(period_in_us < TASK_MIN_PERIOD)
 	{
 		FAULT("The period should be greater than %d uSec\n", TASK_MIN_PERIOD);
-		return INVALID_PERIOD;
-	}
-	else if(period_in_us > TASK_MAX_PERIOD)
-	{
-		FAULT("The period should be less than %d uSec\n", TASK_MAX_PERIOD);
 		return INVALID_PERIOD;
 	}
 	if(deadline_in_us < budget_in_us)
@@ -310,11 +305,11 @@ static void TaskEntryMain(void *pdata)
 		}
 		if(task->deadline == task->period)
 		{
-			_OS_SetAlarm(task, task->alarm_time, FALSE);
+			_OS_SetAlarm(task, task->alarm_time, FALSE, TRUE);
 		}
 		else
 		{
-			_OS_SetAlarm(task, task->alarm_time + task->period - task->deadline, FALSE);
+			_OS_SetAlarm(task, task->alarm_time + task->period - task->deadline, FALSE, TRUE);
 		}
 		OS_EXIT_CRITICAL(intsts);
 

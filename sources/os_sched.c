@@ -10,6 +10,7 @@
 #include "os_core.h"
 #include "os_queue.h"
 #include "os_timer.h"
+#include "util.h"
 #include "mmu.h"
 
 _OS_Queue g_ready_q;
@@ -40,14 +41,15 @@ extern UINT32 *_OS_BuildTaskStack(UINT32 * stack_ptr,
 							void (*task_function)(void *), 
 							void * arg, BOOL system_task);
 
-extern INT8 *strncpy(INT8 *dest, const INT8 *src, UINT32 n);
-extern INT8 *strcpy(INT8 *dest, const INT8 *src);
-
 void _OS_Timer0ISRHook(void *arg);
 void _OS_Timer1ISRHook(void *arg);
-void _OS_SetAlarm(OS_PeriodicTask *task, UINT64 abs_time_in_us, BOOL is_new_job);
-void _OS_UpdateTaskBudget (OS_PeriodicTask *task);
-void _OS_StatisticsFn(void * ptr);
+void _OS_SetAlarm(OS_PeriodicTask *task, 
+					UINT64 abs_time_in_us, 
+					BOOL is_new_job,
+					BOOL update_timer);
+static void _OS_SetNextTimeout(void);
+static void _OS_UpdateTaskBudget (OS_PeriodicTask *task);
+static void _OS_StatisticsFn(void * ptr);
 void _OS_ReSchedule();
 
 // TODO: Make all unnecessary functions as static
@@ -99,8 +101,6 @@ void OS_Start()
 			STAT_TASK_PERIOD / 50, 0, g_stat_task_stack, 
 			sizeof(g_stat_task_stack), "STATISTICS", &g_stat_task, 
 			_OS_StatisticsFn, 0);
-		
-		g_next_wakeup_time = 0;
 #else
 		_OS_QueuePeek(&g_wait_q, NULL, &g_next_wakeup_time);
 #endif
@@ -164,7 +164,7 @@ void _OS_ReSchedule()
 
 ///////////////////////////////////////////////////////////////////////////////
 // This function is invoked when the timer expires. This function should calculate
-// and return the new delay required for the next timer expiry in number of
+// and set the new delay required for the next timer expiry in number of
 // microseconds.
 ///////////////////////////////////////////////////////////////////////////////
 void _OS_Timer0ISRHook(void *arg)
@@ -173,9 +173,10 @@ void _OS_Timer0ISRHook(void *arg)
 	UINT64 new_time = 0;
 	
 	KlogStr(KLOG_OS_TIMER_ISR, "OS Timer ISR - ", ((OS_AperiodicTask *)arg)->name);
-
-	_OS_TimerInterrupt(0);
 		
+	// Acknowledge the interrupt
+	_OS_TimerInterrupt(0);
+
 	g_global_time = g_next_wakeup_time;	
 	g_next_wakeup_time = 0xFFFFFFFFFFFFFFFF;
 	
@@ -192,23 +193,25 @@ void _OS_Timer0ISRHook(void *arg)
 			task->dline_miss_count ++;
 
 			// If the relative deadline and the period are same, then reintroduce a job
-			// in the same queue else put it in the wait_q
+			// in the ready queue because the next period for the task is to begin now
 			if(task->deadline == task->period)
 			{
 				// ReSet the remaining budget to full budget
 				task->remaining_budget = task->budget;
-				_OS_SetAlarm(task, g_global_time + task->period, TRUE);
+				_OS_SetAlarm(task, g_global_time + task->period, TRUE, FALSE);
 			}
+			// Else put it in the wait_q so that we can reintroduce the task to ready
+			// when the next period begins some time later.
 			else
 			{
-				_OS_SetAlarm(task, g_global_time + task->period - task->deadline, FALSE);
+				_OS_SetAlarm(task, g_global_time + task->period - task->deadline, FALSE, FALSE);
 			}
 
 			continue;
 		}
 		else
 		{
-			break;				
+			break;
 		}
 	}
 
@@ -223,7 +226,7 @@ void _OS_Timer0ISRHook(void *arg)
 			
 			// ReSet the remaining budget to full budget
 			task->remaining_budget = task->budget;
-			_OS_SetAlarm(task, g_global_time + task->deadline, TRUE);
+			_OS_SetAlarm(task, g_global_time + task->deadline, TRUE, FALSE);
 			continue;
 		}
 		else
@@ -232,6 +235,11 @@ void _OS_Timer0ISRHook(void *arg)
 		}
 	}
 
+	// Update the timeout
+	_OS_SetNextTimeout();
+
+	// Select the next task to schedule. First from the periodic ready queue
+	// then from the Aperiodic ready queue
 	if(_OS_QueuePeek(&g_ready_q, (void**) &task, 0) != SUCCESS)
 	{
 		_OS_QueuePeek(&g_ap_ready_q, (void**) &task, 0);
@@ -282,13 +290,18 @@ void _OS_Timer1ISRHook(void *arg)
 		}
 		if(task->deadline == task->period)
 		{
-			_OS_SetAlarm(task, task->alarm_time, FALSE);
+			_OS_SetAlarm(task, task->alarm_time, FALSE, FALSE);
 		}
 		else
 		{
-			_OS_SetAlarm(task, task->alarm_time + task->period - task->deadline, FALSE);
+			_OS_SetAlarm(task, task->alarm_time + task->period - task->deadline, FALSE, FALSE);
 		}
+		
+		// Update the Timer 0 timeout
+		_OS_SetNextTimeout();
 
+		// Select the next task to schedule. First from the periodic ready queue
+		// then from the Aperiodic ready queue
 		if(_OS_QueuePeek(&g_ready_q, (void**) &task, 0) != SUCCESS)
 		{
 			_OS_QueuePeek(&g_ap_ready_q, (void**) &task, 0);
@@ -346,12 +359,11 @@ void _OS_UpdateTaskBudget (OS_PeriodicTask *task)
 // waking up at a specified time instant (relative to the starting time).
 // ASSUMPTION: The interrupts are disabled when this function is invoked
 ///////////////////////////////////////////////////////////////////////////////
-void _OS_SetAlarm(OS_PeriodicTask *task, UINT64 abs_time_in_us, BOOL is_new_job)
+void _OS_SetAlarm(OS_PeriodicTask *task, 
+	UINT64 abs_time_in_us, 
+	BOOL is_new_job,
+	BOOL update_timer)
 {
-	_OS_Queue * q;
-	UINT64 t1 = 0xFFFFFFFFFFFFFFFF;
-	UINT64 t2 = 0xFFFFFFFFFFFFFFFF;
-
 	// If it was a past time, then return immediately.
 	if(g_global_time >= abs_time_in_us) 
 	{
@@ -360,20 +372,35 @@ void _OS_SetAlarm(OS_PeriodicTask *task, UINT64 abs_time_in_us, BOOL is_new_job)
 
 	// Insert the task into the g_ready_q / g_wait_q
 	task->alarm_time = abs_time_in_us;
-	q = (is_new_job) ? &g_ready_q : &g_wait_q;
+	_OS_QueueInsert(((is_new_job) ? &g_ready_q : &g_wait_q), (void *) task, abs_time_in_us);
+	
+	if(update_timer) 
+	{
+		_OS_SetNextTimeout();
+	}
+}
 
-	_OS_QueueInsert(q, (void *) task, abs_time_in_us);
+///////////////////////////////////////////////////////////////////////////////
+// Set the timer to next earliest timeout requested in either the
+// ready queue or the wait queue
+///////////////////////////////////////////////////////////////////////////////
+void _OS_SetNextTimeout(void)
+{
+	UINT64 t1 = 0xFFFFFFFFFFFFFFFF;
+	UINT64 t2 = 0xFFFFFFFFFFFFFFFF;
+	UINT64 abs_time_in_us;
 
-	// Set the timer to the next earliest timeout requested in both queues
 	_OS_QueuePeek(&g_ready_q, 0, &t1);
 	_OS_QueuePeek(&g_wait_q, 0, &t2);
 	abs_time_in_us = (t1 < t2) ? t1 : t2;
-			
+		
+	// Check if we want a shorter timeout than the one currently set
 	if((abs_time_in_us > g_global_time) && \
 		(abs_time_in_us < g_next_wakeup_time))	
 	{
-		// We want a shorter timeout.
-		g_next_wakeup_time = abs_time_in_us;
+		// Also check if the timeout is > maximum timeout the clock can support
+		g_next_wakeup_time = ((abs_time_in_us - g_global_time) > MAX_TIMER0_INTERVAL_uS) 
+							? MAX_TIMER0_INTERVAL_uS : abs_time_in_us;
 		_OS_UpdateTimer((UINT32)(g_next_wakeup_time - g_global_time));		
 	}
 }

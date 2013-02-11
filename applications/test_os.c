@@ -20,15 +20,15 @@ extern int g_array[];
 void task_fn1(void * ptr)
 {
 	static int count = 0;
-	OS_PeriodicTask * task = OS_GetCurrentTask();
-	UINT32 dm = task->TBE_count;
+// 	OS_PeriodicTask * task = OS_GetCurrentTask();
+// 	UINT32 dm = task->TBE_count;
 
 	user_led_toggle(*(int *)ptr);
 	Syslog32("task_fn1 - ", count++);
 
-	while(dm == task->TBE_count)
-	{
-	}
+// 	while(dm == task->TBE_count)
+// 	{
+// 	}
 }
 
 void task_fn(void * ptr)
@@ -77,10 +77,10 @@ int main(int argc, char *argv[])
 //	OS_CreatePeriodicTask(5000, 5000, 1000, 500, stack3, sizeof(stack3), &task3, task_fn2, &c);
 //	OS_CreatePeriodicTask(10000, 10000, 2500, 1000, stack4, sizeof(stack4), &task4, task_fn2, &d);
 
-	OS_CreatePeriodicTask( 100000, 100000, 50000, 10000, stack1, sizeof(stack1), "LED1", &task1, task_fn1, &a);
-	OS_CreatePeriodicTask( 200000, 200000, 20000, 45000, stack2, sizeof(stack2), "LED2", &task2, task_fn1, &b);
-	OS_CreatePeriodicTask( 500000, 500000, 30000, 21000, stack3, sizeof(stack3), "LED3", &task3, task_fn1, &c);
-	OS_CreatePeriodicTask(1000000, 1000000, 40000, 37000, stack4, sizeof(stack4), "LED4", &task4, task_fn1, &d);
+//	OS_CreatePeriodicTask( 100000, 100000, 50000, 10000, stack1, sizeof(stack1), "LED1", &task1, task_fn1, &a);
+ 	OS_CreatePeriodicTask( 200000, 200000, 20000, 45000, stack2, sizeof(stack2), "LED2", &task2, task_fn1, &b);
+// 	OS_CreatePeriodicTask( 500000, 500000, 30000, 21000, stack3, sizeof(stack3), "LED3", &task3, task_fn1, &c);
+// 	OS_CreatePeriodicTask(1000000, 1000000, 40000, 37000, stack4, sizeof(stack4), "LED4", &task4, task_fn1, &d);
 	
 //	OS_CreatePeriodicTask(10000, 8000, 2000, 0, stack1, sizeof(stack1), &task1, pi_main, (void*)&a);
 //	OS_CreatePeriodicTask(10000, 8000, 2000, 0, stack2, sizeof(stack2), &task2, srt_main, (void*)g_array);
