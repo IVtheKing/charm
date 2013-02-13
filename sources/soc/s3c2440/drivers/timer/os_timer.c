@@ -74,6 +74,8 @@ void _OS_TimerInterrupt(UINT32 timer)
 ///////////////////////////////////////////////////////////////////////////////
 BOOL _OS_UpdateTimer(UINT32 delay_in_us)
 {
+	Klog32(KLOG_OS_TIMER_SET, "OS Timer Set (ms) - ", delay_in_us);
+	
 	if(delay_in_us == 0)
 	{
 		// Disable the timer
@@ -92,6 +94,7 @@ BOOL _OS_UpdateTimer(UINT32 delay_in_us)
 			// The requested timeout is in the future. Update the terminal Count
 			// and just resume counting
 			rTCNTB0 =  (req_count - elapsed_count);
+			Klog32(KLOG_OS_TIMER_SET, "OS Timer Set - ", rTCNTB0);
 		}
 		else
 		{
@@ -120,6 +123,8 @@ UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us)
 	UINT32 req_count = CONVERT_us_TO_TICKS(delay_in_us);
 	UINT32 cur_count = rTCNTO1;
 	
+	Klog32(KLOG_BUDGET_TIMER_SET, "Budget Timer Set (ms) - ", delay_in_us);
+	
 	if(delay_in_us == 0)
 	{
 		// Disable the timer
@@ -134,6 +139,7 @@ UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us)
 		// The requested timeout is in the future. Update the terminal Count
 		// and just resume counting
 		rTCNTB1 = (req_count > elapsed_count) ? (req_count - elapsed_count) : 1;
+		Klog32(KLOG_BUDGET_TIMER_SET, "Budget Timer Set - ", rTCNTB1);
 		
 		// Inform that the Timer 1 Buffer has changed
 		rTCON = (rTCON & (~0xf00)) | 0x200;

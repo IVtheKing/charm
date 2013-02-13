@@ -388,20 +388,26 @@ void _OS_SetNextTimeout(void)
 {
 	UINT64 t1 = 0xFFFFFFFFFFFFFFFF;
 	UINT64 t2 = 0xFFFFFFFFFFFFFFFF;
-	UINT64 abs_time_in_us;
+	UINT64 time_in_us;
 
 	_OS_QueuePeek(&g_ready_q, 0, &t1);
 	_OS_QueuePeek(&g_wait_q, 0, &t2);
-	abs_time_in_us = (t1 < t2) ? t1 : t2;
+	time_in_us = (t1 < t2) ? t1 : t2;
 		
 	// Check if we want a shorter timeout than the one currently set
-	if((abs_time_in_us > g_global_time) && \
-		(abs_time_in_us < g_next_wakeup_time))	
+	if((time_in_us > g_global_time) && \
+		(time_in_us < g_next_wakeup_time))	
 	{
 		// Also check if the timeout is > maximum timeout the clock can support
-		g_next_wakeup_time = ((abs_time_in_us - g_global_time) > MAX_TIMER0_INTERVAL_uS) 
-							? MAX_TIMER0_INTERVAL_uS : abs_time_in_us;
-		_OS_UpdateTimer((UINT32)(g_next_wakeup_time - g_global_time));		
+		UINT32 diff_time = (UINT32)(time_in_us - g_global_time);
+		if(diff_time > MAX_TIMER0_INTERVAL_uS)
+		{
+			diff_time = MAX_TIMER0_INTERVAL_uS;
+		}
+					
+		// Schedule the next interrupt
+		g_next_wakeup_time = g_global_time + diff_time;
+		_OS_UpdateTimer(diff_time);
 	}
 }
 

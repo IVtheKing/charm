@@ -163,17 +163,6 @@ void SyslogStr(const INT8 * str, const INT8 * value);
 void Syslog32(const INT8 * str, UINT32 value);
 void Syslog64(const INT8 * str, UINT64 value);
 
-typedef enum
-{
-	KLOG_CONTEXT_SWITCH 	= (1 << 0),
-	KLOG_OS_TIMER_ISR 		= (1 << 1),
-	KLOG_BUDGET_TIMER_ISR 	= (1 << 2),
-	KLOG_DEBUG_BUDGET 		= (1 << 3),
-	
-	KLOG_MISC 				= (1 << 31)
-	
-} Klog_MaskType;
-
 #if OS_KERNEL_LOGGING == 1
 
 #define KlogStr(mask, str, val) \

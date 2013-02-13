@@ -10,7 +10,6 @@
 #ifndef _OS_CONFIG_H
 #define _OS_CONFIG_H
 
-
 #define FIN 	(12000000)			// 12MHz Crystal
 
 #define FCLK (405000000)			// Main Processor clock	405 MHz
@@ -56,10 +55,25 @@
 #define TASK_MAX_BUDGET		MAX_TIMER1_INTERVAL_uS
 
 // Debug & Info related
+
+// Define the Debug masks
+typedef enum
+{
+	KLOG_CONTEXT_SWITCH 	= (1 << 0),
+	KLOG_OS_TIMER_ISR 		= (1 << 1),
+	KLOG_BUDGET_TIMER_ISR 	= (1 << 2),
+	KLOG_DEBUG_BUDGET 		= (1 << 3),
+	KLOG_OS_TIMER_SET 		= (1 << 4),
+	KLOG_BUDGET_TIMER_SET 	= (1 << 5),
+	
+	KLOG_MISC 				= (1 << 31)
+	
+} Klog_MaskType;
+
 #define OS_ENABLE_CPU_STATS			0		// TODO: Enable CPU Stats
 #define OS_WITH_VALIDATE_TASK		1
 #define	OS_KERNEL_LOGGING			0
-#define	OS_KLOG_MASK				0xFFFFFFFF
+#define	OS_KLOG_MASK				(KLOG_OS_TIMER_SET)
 #define DEBUG_UART_CHANNEL			0
 
 #endif // _OS_CONFIG_H
