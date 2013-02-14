@@ -59,10 +59,10 @@ void _OS_InitTimer ()
 ///////////////////////////////////////////////////////////////////////////////
 void _OS_TimerInterrupt(UINT32 timer)
 {
-	// TODO: This is bit early to stop the timer, somehow I should keep it running
-	// without it generating an interrupt. Otherwise there will be a drift in the clock.
-	// First Stop the Timer	
-	rTCON &= ~(0x0f << (timer << 3));		
+	// We should keep the running without it generating an interrupt. 
+	// Otherwise there will be a drift in the clock. 
+	// Since we want to keep the timer running, comment following code
+	//rTCON &= ~(0x0f << (timer << 3));		
 	
 	// Clear the interrupt flag in the SRCPND and INTPND registers
 	rSRCPND = (BIT_TIMER0 << timer);
@@ -74,7 +74,7 @@ void _OS_TimerInterrupt(UINT32 timer)
 ///////////////////////////////////////////////////////////////////////////////
 BOOL _OS_UpdateTimer(UINT32 delay_in_us)
 {
-	Klog32(KLOG_OS_TIMER_SET, "OS Timer Set (ms) - ", delay_in_us);
+	Klog32(KLOG_OS_TIMER_SET, "OS Timer Set (us) - ", delay_in_us);
 	
 	if(delay_in_us == 0)
 	{
@@ -87,7 +87,7 @@ BOOL _OS_UpdateTimer(UINT32 delay_in_us)
 		UINT32 req_count = CONVERT_us_TO_TICKS(delay_in_us);
 	
 		// Get the timer count that has already elapsed since the actual timer interrupt
-		UINT32 elapsed_count = (rTCNTB0 - rTCNTO0);
+		UINT32 elapsed_count = rTCNTB0 ? (rTCNTB0 - rTCNTO0) : 0;
 		
 		if(req_count > elapsed_count) 
 		{
@@ -123,7 +123,7 @@ UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us)
 	UINT32 req_count = CONVERT_us_TO_TICKS(delay_in_us);
 	UINT32 cur_count = rTCNTO1;
 	
-	Klog32(KLOG_BUDGET_TIMER_SET, "Budget Timer Set (ms) - ", delay_in_us);
+	Klog32(KLOG_BUDGET_TIMER_SET, "Budget Timer Set (us) - ", delay_in_us);
 	
 	if(delay_in_us == 0)
 	{
@@ -134,7 +134,7 @@ UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us)
 	else 
 	{
 		// Get the timer count that has already elapsed since the actual timer interrupt
-		UINT32 elapsed_count = (rTCNTB1 - cur_count);
+		UINT32 elapsed_count = rTCNTB1 ? (rTCNTB1 - cur_count) : 0;
 
 		// The requested timeout is in the future. Update the terminal Count
 		// and just resume counting
