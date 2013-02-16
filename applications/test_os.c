@@ -19,16 +19,14 @@ extern int g_array[];
 
 void task_fn1(void * ptr)
 {
-//	static int count = 0;
-// 	OS_PeriodicTask * task = OS_GetCurrentTask();
-// 	UINT32 dm = task->TBE_count;
+	static int count = 0;
+ 	OS_PeriodicTask * task = OS_GetCurrentTask();
+ 	UINT32 dm = task->TBE_count;
 
 	user_led_toggle(*(int *)ptr);
-//	Syslog32("task_fn1 - ", count++);
+	Syslog32("task_fn1 - ", count++);
 
-// 	while(dm == task->TBE_count)
-// 	{
-// 	}
+ 	while(dm == task->TBE_count);
 }
 
 void task_fn(void * ptr)
