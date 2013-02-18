@@ -35,6 +35,10 @@
 #define ENABLE_INSTRUCTION_CACHE	1
 #define ENABLE_DATA_CACHE			1
 
+// Drivers to include
+#define ENABLE_RTC					1
+#define ENABLE_RTC_ALARM			1
+
 // Task related configuration parameters
 #define MIN_PRIORITY				255
 #define OS_IDLE_TASK_STACK_SIZE		0x40		// In Words

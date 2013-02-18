@@ -199,7 +199,7 @@ UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us)
 ///////////////////////////////////////////////////////////////////////////////
 // Converts the current timer count into micro seconds and returns.
 ///////////////////////////////////////////////////////////////////////////////
-UINT32 _OS_GetTime(UINT32 timer)
+UINT32 _OS_GetTimerValue_us(UINT32 timer)
 {
 	return CONVERT_TICKS_TO_us(timer ? rTCNTO1 : rTCNTO0);
 }

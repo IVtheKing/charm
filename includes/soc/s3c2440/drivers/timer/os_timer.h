@@ -17,6 +17,6 @@ void _OS_InitTimer ();
 BOOL _OS_UpdateTimer(UINT32 delay_in_us);
 UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us);
 void _OS_TimerInterrupt(UINT32 timer);
-UINT32 _OS_GetTime(UINT32 timer);
+UINT32 _OS_GetTimerValue_us(UINT32 timer);
 
 #endif // _OS_TIMER_H_

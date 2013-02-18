@@ -25,6 +25,13 @@ typedef enum {
 void Uart_Init(UART_Channel ch);
 void Uart_Print(UART_Channel ch, const INT8 *buf);
 void Uart_Write(UART_Channel ch, const INT8 *buf, UINT32 count);
-void Uart_Read(UART_Channel ch, INT8 *buf, UINT32 count);
+void Uart_ReadB(UART_Channel ch, INT8 *buf, UINT32 count);	// Blocking read
+void Uart_ReadNB(UART_Channel ch, INT8 *buf, UINT32 * count);	// Non Blocking Read
+
+// Non Blocking single ASCII character read
+INT8 Uart_GetChar(UART_Channel ch);	
+
+// Non Blocking single ASCII character write. Returns the number of characters written (0/1)
+INT8 Uart_PutChar(UART_Channel ch, UINT8 data);	
 
 #endif // _UART_H_

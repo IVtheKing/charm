@@ -24,36 +24,54 @@ void panic(const INT8 * format, ...)
 void SyslogStr(const INT8 * str, const INT8 * value)
 {
 	// TODO: OS Log should be handled using a different buffer to be fast
-	if(str) {
+	if(str) 
+	{
 		Uart_Print(DEBUG_UART_CHANNEL, str);
 	}
 	
-	Uart_Print(DEBUG_UART_CHANNEL, value);
-	Uart_Print(DEBUG_UART_CHANNEL, "\n");
+	if(value) 
+	{
+		Uart_Print(DEBUG_UART_CHANNEL, value);
+	}
+	
+	if(str) 
+	{
+		Uart_Print(DEBUG_UART_CHANNEL, "\n");
+	}
 }
 
 void Syslog32(const INT8 * str, UINT32 value)
 {
 	INT8 valueStr[12];
 	
-	if(str) {
+	if(str) 
+	{
 		Uart_Print(DEBUG_UART_CHANNEL, str);
 	}
 	
 	itoa(value, valueStr);
 	Uart_Print(DEBUG_UART_CHANNEL, valueStr);	
-	Uart_Print(DEBUG_UART_CHANNEL, "\n");
+	
+	if(str) 
+	{
+		Uart_Print(DEBUG_UART_CHANNEL, "\n");
+	}
 }
 
 void Syslog64(const INT8 * str, UINT64 value)
 {
 	INT8 valueStr[20];
 
-	if(str) {
+	if(str) 
+	{
 		Uart_Print(DEBUG_UART_CHANNEL, str);
 	}
 	
 	itoa64(value, valueStr);
 	Uart_Print(DEBUG_UART_CHANNEL, valueStr);	
-	Uart_Print(DEBUG_UART_CHANNEL, "\n");
+	
+	if(str) 
+	{
+		Uart_Print(DEBUG_UART_CHANNEL, "\n");
+	}
 }

@@ -446,7 +446,7 @@ UINT64 OS_GetElapsedTime()
 	// NOTE: The below loop for GetElapsedTime is very important. The design 
 	// for this function is due to:
 	// 1. We want to ensure that there is no interruption b/w reading
-	// g_global_time and _OS_GetTime. Otherwise we will have old g_global_time 
+	// g_global_time and _OS_GetTimerValue_us. Otherwise we will have old g_global_time 
 	// and latest timer count, which is not correct. 
 	// 2. We cannot use disable/enable interrupts to avoid looping. This is because
 	// the timer is designed to keep running in the background even if we have
@@ -457,7 +457,7 @@ UINT64 OS_GetElapsedTime()
 	do
 	{
 		old_global_time = g_global_time;
-		elapsed_time = g_global_time + _OS_GetTime(1);
+		elapsed_time = g_global_time + _OS_GetTimerValue_us(1);
 	} 
 	while(old_global_time != g_global_time); // To ensure that the timer has not expired since we have read both g_global_time and OSW_GetTime
 

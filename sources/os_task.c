@@ -355,7 +355,7 @@ UINT64 OS_GetThreadElapsedTime()
 		if(task->type == PERIODIC_TASK)
 		{	
 	       OS_ENTER_CRITICAL(intsts); // Enter the critical section		
-		   thread_elapsed_time = task->accumulated_budget + _OS_GetTime(1);
+		   thread_elapsed_time = task->accumulated_budget + _OS_GetTimerValue_us(1);
 		   OS_EXIT_CRITICAL(intsts); // Exit the critical section		
 		}	
 	}

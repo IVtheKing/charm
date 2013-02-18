@@ -10,6 +10,7 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "os_config.h"
+#include "os_core.h"
 #include "soc.h"
 #include "uart.h"
 
@@ -58,6 +59,8 @@ void Uart_Init(UART_Channel ch)
 
 void Uart_Print(UART_Channel ch, const INT8 *buf) 
 {
+	if(!buf) return;
+	
 	if(!(Uart_init_status & (1 << ch)))
 	{
 		Uart_Init(ch);
@@ -80,6 +83,9 @@ void Uart_Print(UART_Channel ch, const INT8 *buf)
 
 void Uart_Write(UART_Channel ch, const INT8 *buf, UINT32 count) 
 {
+	if(!buf) 
+		return;
+	
 	if(!(Uart_init_status & (1 << ch)))
 	{
 		Uart_Init(ch);
@@ -102,8 +108,11 @@ void Uart_Write(UART_Channel ch, const INT8 *buf, UINT32 count)
 	}
 }
 
-void Uart_Read(UART_Channel ch, INT8 *buf, UINT32 count) 
+void Uart_ReadB(UART_Channel ch, INT8 *buf, UINT32 count) 
 {
+	if(!buf) 
+		return;
+	
 	if(!(Uart_init_status & (1 << ch)))
 	{
 		Uart_Init(ch);
@@ -123,4 +132,66 @@ void Uart_Read(UART_Channel ch, INT8 *buf, UINT32 count)
 			count--;
 		}
 	}
+}
+
+void Uart_ReadNB(UART_Channel ch, INT8 *buf, UINT32 *count) 
+{
+	if(!buf || !count) 
+		return;
+		
+	if(!(Uart_init_status & (1 << ch)))
+	{
+		Uart_Init(ch);
+	}
+	
+	UINT32 available = rUFSTAT(ch) & 0x3f;
+	if (available > *count)
+	{
+		available = *count;
+	}
+	else 
+	{
+		*count = available;
+	}
+
+	while(available--)
+	{
+		*buf = rURXH(ch);
+		buf++;
+	}
+}
+
+// Non Blocking single ASCII character read. When there is no data available, it returns 0
+INT8 Uart_GetChar(UART_Channel ch)
+{
+	if(!(Uart_init_status & (1 << ch)))
+	{
+		Uart_Init(ch);
+	}
+	
+	UINT32 available = rUFSTAT(ch) & 0x3f;
+	if(available)
+	{
+		return rURXH(ch);
+	}
+	
+	return 0;
+}
+
+INT8 Uart_PutChar(UART_Channel ch, UINT8 data)
+{
+	if(!(Uart_init_status & (1 << ch)))
+	{
+		Uart_Init(ch);
+	}
+	
+	// Check if FIFO is full
+	if(rUFSTAT(ch) & (1 << 14)) {
+		return 0;
+	}
+	
+	// Write the character
+	rUTXH(ch) = data;
+	
+	return 1;
 }

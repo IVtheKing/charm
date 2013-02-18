@@ -36,6 +36,7 @@ typedef enum
 	CHKPT_FAIL = 22,
 	INVALID_ARG = 23, 
 	INVALID_DEADLINE = 24,
+	FORMAT_ERROR = 25,
 
 	UNKNOWN = 99	
 
@@ -84,7 +85,7 @@ OS_Error OS_CreatePeriodicTask(
 	void *pdata);
 
 OS_Error OS_CreateAperiodicTask(
-	UINT16 priority,
+	UINT16 priority,				// Smaller the number, higher the priority
 	UINT32 * stack,
 	UINT32 stack_size_in_bytes,
 #if OS_WITH_TASK_NAME==1
@@ -126,6 +127,22 @@ UINT64 OS_GetElapsedTime();
 UINT64 OS_GetThreadElapsedTime();
 
 ///////////////////////////////////////////////////////////////////////////////
+// Date and Time functions
+///////////////////////////////////////////////////////////////////////////////
+#if ENABLE_RTC==1
+
+#include "rtc.h"
+
+OS_Error OS_GetDateAndTime(OS_DateAndTime *date_and_time);
+OS_Error OS_SetDateAndTime(const OS_DateAndTime *date_and_time);
+OS_Error OS_GetTime(OS_Time *time);
+#if ENABLE_RTC_ALARM==1
+OS_Error OS_SetAlarm(const OS_DateAndTime *date_and_time);
+OS_Error OS_GetAlarm(OS_DateAndTime *date_and_time);
+#endif // ENABLE_RTC_ALARM
+#endif // ENABLE_RTC
+
+///////////////////////////////////////////////////////////////////////////////
 // Semaphore functions
 ///////////////////////////////////////////////////////////////////////////////
 OS_Error OS_SemInit(OS_Sem *sem, INT16 pshared, UINT32 value);
@@ -160,6 +177,7 @@ OS_InterruptVector OS_SetInterruptVector(OS_InterruptVector isr, UINT32 index);
 
 void panic(const INT8 *format, ...);
 void SyslogStr(const INT8 * str, const INT8 * value);
+#define Syslog(str)	SyslogStr(str, NULL)
 void Syslog32(const INT8 * str, UINT32 value);
 void Syslog64(const INT8 * str, UINT64 value);
 
