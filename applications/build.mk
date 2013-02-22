@@ -2,4 +2,4 @@
 ##
 ## SOURCES		+=	$(foreach srcdir, $(SOURCE_DIRS), $(wildcard $(srcdir)/*.c))
 
-SOURCES	+=	applications/test_os.c
+SOURCES	+=	applications/test_rtc.c
