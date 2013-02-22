@@ -98,8 +98,46 @@ void _OS_TimerInterrupt(UINT32 timer)
 ///////////////////////////////////////////////////////////////////////////////
 BOOL _OS_UpdateTimer(UINT32 delay_in_us)
 {
+	UINT32 elapsed_count;
+	UINT32 req_count = CONVERT_us_TO_TICKS(delay_in_us);
+
 	Klog32(KLOG_OS_TIMER_SET, "OS Timer Set (us) - ", delay_in_us);
 	
+	// Clear the interrupt flag in the SRCPND and INTPND registers
+	rSRCPND = BIT_TIMER0;
+	rINTPND = BIT_TIMER0;
+	
+	// Calculate the elapsed time. There are following 4 cases:
+	// 1. The OS timer has expired and the ISR has finished.
+	//		In this case, timer0_count_buffer = MAX_TIMER_COUNT
+	// 2. The OS timer has expired and but the ISR has not finished yet
+	//		In this case, timer0_count_buffer < MAX_TIMER_COUNT but rTCNTO0 is > timer0_count_buffer
+	// 3. Budget timer is still running	(not expired)
+	// 4. The budget timer may have been disabled in the last period. 
+	if(timer0_count_buffer == MAX_TIMER_COUNT)
+	{
+		// Case 1
+		elapsed_count = (MAX_TIMER_COUNT - rTCNTO0);	// Take this time from the new task
+	}
+	else if(timer0_count_buffer > 0)
+	{
+		if(rTCNTO0 > timer0_count_buffer)
+		{
+			// Case 2
+			elapsed_count = (MAX_TIMER_COUNT - rTCNTO0);	// Take this time from the new task
+		}
+		else
+		{
+			// Case 3. We must have requested shorter timeout.
+			elapsed_count = (timer0_count_buffer - rTCNTO0);
+		}
+	}
+	else
+	{
+		// Case 4. The previous task must have been an Aperiodic task
+		elapsed_count = 0;
+	}
+
 	if(delay_in_us == 0)
 	{
 		// Disable the timer. 
@@ -108,39 +146,35 @@ BOOL _OS_UpdateTimer(UINT32 delay_in_us)
 	}
 	else
 	{
-		UINT32 req_count = CONVERT_us_TO_TICKS(delay_in_us);
-	
-		// Get the timer count that has already elapsed since the actual timer interrupt
-		UINT32 elapsed_count = timer0_count_buffer ? (timer0_count_buffer - rTCNTO0) : 0;
-		
 		if(req_count > elapsed_count) 
 		{
 			// The requested timeout is in the future. Update the terminal Count
 			// and just resume counting
 			rTCNTB0 = timer0_count_buffer = (req_count - elapsed_count);
+			
+			// Inform that Timer 0 Buffer has changed by updating manual update bit
+			rTCON = (rTCON & (~0x0f)) | TIMER0_UPDATE;
+			rTCON = (rTCON & (~0x0f)) | (TIMER0_START | TIMER0_AUTORELOAD); 
+
 			Klog32(KLOG_OS_TIMER_SET, "OS Timer Set - ", timer0_count_buffer);
 		}
 		else
 		{
 			// Highly undesirable situation. You may need to adjust the task timings
-			Syslog64("KERNEL WARNING: Requested timeout is in the past ", req_count);
 			rTCNTB0 = timer0_count_buffer = 0;	
-		}
+
+			// Inform that Timer 0 Buffer has changed by updating manual update bit
+			rTCON = (rTCON & (~0x0f)) | TIMER0_UPDATE;
+			rTCON = (rTCON & (~0x0f)) | (TIMER0_START | TIMER0_AUTORELOAD); 
 			
-		// Inform that the Timer 0 Buffer has changed by updating manual update bit
-		rTCON = (rTCON & (~0x0f)) | TIMER0_UPDATE;
+			Syslog64("KERNEL WARNING: Requested timeout is in the past ", req_count);
+		}
 		
 		// Once manual update is done, we can change rTCNTB without affecting the current
 		// timeout. We want the next cycle to start from the max value so that it is 
 		// easy to compute elapsed time later on. This value will be loaded during auto-reload
 		// after the counter reaches zero
-		rTCNTB0 = MAX_TIMER_COUNT;
-		
-		// If the timer is not running, then start the timer with auto reload
-		if(!(rTCON & TIMER0_START))
-		{
-			rTCON = (rTCON & (~0x0f)) | (TIMER0_START | TIMER0_AUTORELOAD);	
-		}
+		rTCNTB0 = MAX_TIMER_COUNT;		
 	}
 	
 	return 1;
@@ -152,9 +186,57 @@ BOOL _OS_UpdateTimer(UINT32 delay_in_us)
 UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us)
 {
 	UINT32 req_count = CONVERT_us_TO_TICKS(delay_in_us);
-	UINT32 cur_count = rTCNTO1;
+	UINT32 elapsed_count = 0;
+	UINT32 budget_spent;
 	
 	Klog32(KLOG_BUDGET_TIMER_SET, "Budget Timer Set (us) - ", delay_in_us);
+	
+	// Clear the interrupt flag in the SRCPND and INTPND registers
+	rSRCPND = BIT_TIMER1;
+	rINTPND = BIT_TIMER1;
+	
+	// Now calculate budget spent. There are 4 cases:
+	// 1. The budget timer has expired and the ISR has finished.
+	//		In this case, timer1_count_buffer = MAX_TIMER_COUNT
+	//		The caller knows what was the requested timeout. Just return invalid value and 
+	//		let the caller handle the case
+	// 2. The budget timer has expired and but the ISR has not finished yet
+	//		In this case, timer1_count_buffer < MAX_TIMER_COUNT but rTCNTO1 is > timer1_count_buffer
+	//		The caller knows what was the requested timeout. Just return invalid value and 
+	//		let the caller handle the case
+	// 3. Budget timer is still running	(not expired)
+	//		We should return the budget spent
+	// 4. The budget timer may have been disabled in the last period. 
+	//		Return (UINT32)-1
+	// Further, in cases, 1 & 2 we should consider the time elapsed after the budget timer has expired
+	// and deduct that from the next task's budget
+	if(timer1_count_buffer == MAX_TIMER_COUNT)
+	{
+		// Case 1
+		budget_spent = (UINT32)-1;
+		elapsed_count = (MAX_TIMER_COUNT - rTCNTO1);	// Take this time from the new task
+	}
+	else if(timer1_count_buffer > 0)
+	{
+		if(rTCNTO1 > timer1_count_buffer)
+		{
+			// Case 2
+			budget_spent = (UINT32)-1;
+			elapsed_count = (MAX_TIMER_COUNT - rTCNTO1);	// Take this time from the new task
+		}
+		else
+		{
+			// Case 3
+			budget_spent = (timer1_count_buffer - rTCNTO1);		// Take this time from the old task
+			elapsed_count = 0;
+		}
+	}
+	else
+	{
+		// Case 4
+		budget_spent = (UINT32)-1;	// The previous task must have been an Aperiodic task
+		elapsed_count = 0;
+	}
 	
 	if(delay_in_us == 0)
 	{
@@ -164,19 +246,13 @@ UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us)
 	}
 	else 
 	{
-		// Get the timer count that has already elapsed since the actual timer interrupt
-		UINT32 elapsed_count = timer1_count_buffer ? (timer1_count_buffer - cur_count) : 0;
+		// The requested timeout is in the future. Update the terminal Count
+		// and just resume counting
+		rTCNTB1 = timer1_count_buffer = (req_count > elapsed_count) ? (req_count - elapsed_count) : 0;
 
-		if(req_count > elapsed_count) 
-		{
-			// The requested timeout is in the future. Update the terminal Count
-			// and just resume counting
-			rTCNTB1 = timer1_count_buffer = (req_count - elapsed_count);
-		}
-		else
-		{
-			rTCNTB1 = timer1_count_buffer = 0;	
-		}
+		// Inform that Timer 1 Buffer has changed by updating manual update bit
+		rTCON = (rTCON & (~0xf00)) | TIMER1_UPDATE;
+		rTCON = (rTCON & (~0xf00)) | (TIMER1_START | TIMER1_AUTORELOAD); 
 
 		Klog32(KLOG_BUDGET_TIMER_SET, "Budget Timer Set - ", timer1_count_buffer);
 		
@@ -185,15 +261,9 @@ UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us)
 		// easy to compute elapsed time later on. This value will be loaded during auto-reload
 		// after the counter reaches zero
 		rTCNTB1 = MAX_TIMER_COUNT;
-		
-		// If the timer is not running, then start the timer with auto reload
-		if(!(rTCON & TIMER1_START))
-		{
-			rTCON = (rTCON & (~0xf00)) | (TIMER1_START | TIMER1_AUTORELOAD);
-		}
 	}
 
-	return CONVERT_TICKS_TO_us(cur_count);
+	return CONVERT_TICKS_TO_us(budget_spent);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
