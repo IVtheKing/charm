@@ -37,7 +37,7 @@ static UINT32 timer1_count_buffer;
 
 UINT32 _OS_Timer0ISRHook(void *arg);
 UINT32 _OS_Timer1ISRHook(void *arg);
-UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us);
+UINT32 _OS_SetBudgetTimer(UINT32 * delay_in_us);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Function to initialize the timers 0 &       1
@@ -95,13 +95,28 @@ void _OS_TimerInterrupt(UINT32 timer)
 
 ///////////////////////////////////////////////////////////////////////////////
 // Function to update the period in the timer
+// The following function sets up the OS timer.
+// Input:
+// 		delay_in_us: Is the delay requested
+// Output:
+//		delay_in_us: Is the actual delay setup. Since every timer has a maximum interval,
+//		the delay setup may be less than the delay requested.
 ///////////////////////////////////////////////////////////////////////////////
-BOOL _OS_UpdateTimer(UINT32 delay_in_us)
+BOOL _OS_UpdateTimer(UINT32 * delay_in_us)
 {
 	UINT32 elapsed_count;
-	UINT32 req_count = CONVERT_us_TO_TICKS(delay_in_us);
+	
+	ASSERT(delay_in_us);
+	
+	// Each timer has a maximum interval. Adjust the budget timeout accordingly
+	if(*delay_in_us > MAX_TIMER0_INTERVAL_uS)
+	{
+		*delay_in_us = MAX_TIMER0_INTERVAL_uS;
+	}
 
-	Klog32(KLOG_OS_TIMER_SET, "OS Timer Set (us) - ", delay_in_us);
+	UINT32 req_count = CONVERT_us_TO_TICKS(*delay_in_us);
+
+	Klog32(KLOG_OS_TIMER_SET, "OS Timer Set (us) - ", *delay_in_us);
 	
 	// Clear the interrupt flag in the SRCPND and INTPND registers
 	rSRCPND = BIT_TIMER0;
@@ -138,7 +153,7 @@ BOOL _OS_UpdateTimer(UINT32 delay_in_us)
 		elapsed_count = 0;
 	}
 
-	if(delay_in_us == 0)
+	if(*delay_in_us == 0)
 	{
 		// Disable the timer. 
 		rTCON &= ~0x0f;
@@ -181,15 +196,29 @@ BOOL _OS_UpdateTimer(UINT32 delay_in_us)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// Sets a new timeout for the budget timer 
+// The following function sets up the budget timer.
+// Input:
+// 		delay_in_us: Is the delay requested
+// Output:
+//		delay_in_us: Is the actual delay setup. Since every timer has a maximum interval,
+//		the delay setup may be less than the delay requested.
 ///////////////////////////////////////////////////////////////////////////////
-UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us)
+UINT32 _OS_SetBudgetTimer(UINT32 * delay_in_us)
 {
-	UINT32 req_count = CONVERT_us_TO_TICKS(delay_in_us);
 	UINT32 elapsed_count = 0;
 	UINT32 budget_spent;
 	
-	Klog32(KLOG_BUDGET_TIMER_SET, "Budget Timer Set (us) - ", delay_in_us);
+	ASSERT(delay_in_us);
+	
+	// Each timer has a maximum interval. Adjust the budget timeout accordingly
+	if(*delay_in_us > MAX_TIMER1_INTERVAL_uS)
+	{
+		*delay_in_us = MAX_TIMER1_INTERVAL_uS;
+	}
+	
+	UINT32 req_count = CONVERT_us_TO_TICKS(*delay_in_us);
+
+	Klog32(KLOG_BUDGET_TIMER_SET, "Budget Timer Set (us) - ", *delay_in_us);
 	
 	// Clear the interrupt flag in the SRCPND and INTPND registers
 	rSRCPND = BIT_TIMER1;
@@ -238,7 +267,7 @@ UINT32 _OS_SetBudgetTimer(UINT32 delay_in_us)
 		elapsed_count = 0;
 	}
 	
-	if(delay_in_us == 0)
+	if(*delay_in_us == 0)
 	{
 		// Disable the timer. 
 		rTCON &= ~0xf00;

@@ -103,11 +103,6 @@ OS_Error OS_CreatePeriodicTask(
 		FAULT("The budget should be greater than %d uSec\n", TASK_MIN_BUDGET);
 		return INVALID_BUDGET;
 	}
-	else if(budget_in_us > TASK_MAX_BUDGET)
-	{
-		FAULT("The budget should be less than %d uSec\n", TASK_MAX_BUDGET);
-		return INVALID_BUDGET;
-	}
 
 	// Ensure that the stack is 8 byte aligned
 	//ALIGNED_ARRAY(stack);

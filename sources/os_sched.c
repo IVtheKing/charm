@@ -24,6 +24,7 @@ volatile BOOL _OS_IsRunning = FALSE;
 volatile UINT64 g_global_time;		// This variable gets updated everytime the Timer ISR is called.
 volatile UINT64 g_next_wakeup_time; // This variable holds the next scheduled wakeup time in uSecs
 volatile void * g_current_task;
+volatile UINT32	g_current_budget;	// The time for which the budget timer is currently setup
 
 OS_AperiodicTask g_TCB_idle_task;	// A TCB for the idle task
 UINT32 g_idle_task_stack [OS_IDLE_TASK_STACK_SIZE];
@@ -48,7 +49,7 @@ void _OS_SetAlarm(OS_PeriodicTask *task,
 					BOOL is_new_job,
 					BOOL update_timer);
 static void _OS_SetNextTimeout(void);
-static void _OS_UpdateTaskBudget (OS_PeriodicTask *task);
+static void _OS_SetTaskBudget (OS_PeriodicTask *task);
 static void _OS_StatisticsFn(void * ptr);
 void _OS_ReSchedule();
 
@@ -72,6 +73,7 @@ void OS_Start()
 		// Reset the global timer
 		g_global_time = 0;
 		g_next_wakeup_time = 0;
+		g_current_budget = 0;
 
 		// Reset the current task
 		g_current_task = 0;
@@ -106,7 +108,8 @@ void OS_Start()
 #endif
 
 		// Start scheduling by creating the first interrupt
-		_OS_UpdateTimer(OS_FIRST_SCHED_DELAY);	// First timer after 10ms
+		UINT32 delay_start = OS_FIRST_SCHED_DELAY;
+		_OS_UpdateTimer(&delay_start);	// First timer after 10ms
 
 		_OS_IsRunning = TRUE;	// No need to protect this line and the above
 		// 'if' condition as this is called from the initialization for the
@@ -154,11 +157,12 @@ void _OS_ReSchedule()
 		_OS_QueuePeek(&g_ap_ready_q, (void**) &task, 0);
 	}
 
-	_OS_UpdateTaskBudget(task);
+	_OS_SetTaskBudget(task);
 	
 	KlogStr(KLOG_CONTEXT_SWITCH, "ContextSW To - ", ((OS_AperiodicTask *)task)->name);
 		
 	OS_EXIT_CRITICAL(intsts);	// Exit critical section
+	
 	_OS_ContextSw(task);	// This has the affect of g_current_task = task;
 }
 
@@ -245,11 +249,11 @@ void _OS_Timer0ISRHook(void *arg)
 		_OS_QueuePeek(&g_ap_ready_q, (void**) &task, 0);
 	}
 	
-	_OS_UpdateTaskBudget(task);
+	_OS_SetTaskBudget(task);
 	
 	KlogStr(KLOG_CONTEXT_SWITCH, "ContextSW To - ", task->name);
 	
-	_OS_ContextRestore(task);	// This has the affect of g_current_task = task;					
+	_OS_ContextRestore(task);	// This has the affect of g_current_task = task;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -260,7 +264,6 @@ void _OS_Timer1ISRHook(void *arg)
 {
 	// The argument in this case is the g_current_task before the interrupt
 	OS_PeriodicTask * task = (OS_PeriodicTask *)arg;
-	UINT32 timeout = 0;
 
 	KlogStr(KLOG_BUDGET_TIMER_ISR, "Budget Timer ISR - ", task->name);
 	
@@ -268,51 +271,59 @@ void _OS_Timer1ISRHook(void *arg)
 
 	if(task && (task->type == PERIODIC_TASK ))
 	{
-		// The thread budget has exceeded
-		task->TBE_count++;
+		KlogStr(KLOG_BUDGET_TIMER_ISR, "Budget Timer ISR = ", task->name);
 
-		// TODO: Raise the flag saying that the thread has exceeded its
-		// budget
-		
-		// Add to the thread's accumulated budget
-		task->accumulated_budget += task->remaining_budget;
-		task->remaining_budget = 0;
+		// First adjust the remaining & accumulated budgets
+		task->accumulated_budget += g_current_budget;
+		task->remaining_budget -= g_current_budget;
 
-		// Suspend the current task. This task will be automatically 
-		// woken up by the alarm.
-		_OS_QueueDelete(&g_ready_q, task);
-		if(task->alarm_time == g_next_wakeup_time)
-		{
-			// If the next wakeup time is same as the alarm time for the 
-			// current task, just invalidate the next wakeup time so that
-			// it is set again below
-			g_next_wakeup_time = 0xFFFFFFFFFFFFFFFF;
-		}
-		if(task->deadline == task->period)
-		{
-			_OS_SetAlarm(task, task->alarm_time, FALSE, FALSE);
-		}
-		else
-		{
-			_OS_SetAlarm(task, task->alarm_time + task->period - task->deadline, FALSE, FALSE);
-		}
-		
-		// Update the Timer 0 timeout
-		_OS_SetNextTimeout();
+		// If the remaining_budget == 0, there was a TBE exception.
+		// Else restart the budget timer for the remaining time and resume the same task
+		if(task->remaining_budget == 0)
+		{	
+			// The thread budget has exceeded
+			task->TBE_count++;
 
-		// Select the next task to schedule. First from the periodic ready queue
-		// then from the Aperiodic ready queue
-		if(_OS_QueuePeek(&g_ready_q, (void**) &task, 0) != SUCCESS)
-		{
-			_OS_QueuePeek(&g_ap_ready_q, (void**) &task, 0);
+			// TODO: Raise the flag saying that the thread has exceeded its
+			// budget
+		
+			// Suspend the current task. This task will be automatically 
+			// woken up by the alarm.
+			_OS_QueueDelete(&g_ready_q, task);
+			if(task->alarm_time == g_next_wakeup_time)
+			{
+				// If the next wakeup time is same as the alarm time for the 
+				// current task, just invalidate the next wakeup time so that
+				// it is set again below
+				g_next_wakeup_time = 0xFFFFFFFFFFFFFFFF;
+			}
+			if(task->deadline == task->period)
+			{
+				_OS_SetAlarm(task, task->alarm_time, FALSE, FALSE);
+			}
+			else
+			{
+				_OS_SetAlarm(task, task->alarm_time + task->period - task->deadline, FALSE, FALSE);
+			}
+		
+			// Update the Timer 0 timeout
+			_OS_SetNextTimeout();
+
+			// Select the next task to schedule. First from the periodic ready queue
+			// then from the Aperiodic ready queue
+			if(_OS_QueuePeek(&g_ready_q, (void**) &task, 0) != SUCCESS)
+			{
+				_OS_QueuePeek(&g_ap_ready_q, (void**) &task, 0);
+			}
 		}
 
-		// Set the budget timer
-		timeout = (task->type == PERIODIC_TASK) ? task->remaining_budget : 0;
+		// Set the budget timer. Note that the 'task' might have changed.
+		// So guarantee if we still have a periodic task
+		g_current_budget = (task->type == PERIODIC_TASK) ? task->remaining_budget : 0;
 		
-		Klog64(KLOG_DEBUG_BUDGET, "Set Budget - ", timeout);
-		
-		_OS_SetBudgetTimer(timeout);			
+		_OS_SetBudgetTimer(&g_current_budget);
+
+		Klog64(KLOG_DEBUG_BUDGET, "Set Budget - ", g_current_budget);
 		
 		KlogStr(KLOG_CONTEXT_SWITCH, "ContextSW To - ", task->name);
 		
@@ -320,7 +331,7 @@ void _OS_Timer1ISRHook(void *arg)
 	}
 }
 
-///////////////////////////////////////////////////////////////////////////////                                           TASK SWITCH HOOK
+///////////////////////////////////////////////////////////////////////////////
 //
 // Description: This function is called before a task switch is performed.  
 // This allows you to perform other operations during a context switch.
@@ -329,21 +340,22 @@ void _OS_Timer1ISRHook(void *arg)
 //
 // Note(s)    : 1) Interrupts shall be disabled before making this function call
 ///////////////////////////////////////////////////////////////////////////////
-void _OS_UpdateTaskBudget (OS_PeriodicTask *task)
+void _OS_SetTaskBudget(OS_PeriodicTask *task)
 {
 	OS_PeriodicTask * old_task = (OS_PeriodicTask *)g_current_task;
-	UINT32 old_time = 0, new_timeout;
+	UINT32 old_time = 0;
 
 	// If the new and the old tasks are same, then just return.
 	if(old_task == task) return;
 
-	// Check if the new task is a valid periodic thread. 
-	new_timeout = (task->type == PERIODIC_TASK) ? task->remaining_budget : 0;
-
-	Klog64(KLOG_DEBUG_BUDGET, "Set Budget - ", new_timeout);
+	// Set the budget timer after checking if the new task is a valid periodic thread. 
+	g_current_budget = (task->type == PERIODIC_TASK) ? task->remaining_budget : 0;
 	
-	old_time = _OS_SetBudgetTimer(new_timeout);			
+	old_time = _OS_SetBudgetTimer(&g_current_budget);			
 
+	Klog64(KLOG_DEBUG_BUDGET, "Set Budget - ", g_current_budget);
+	Klog64(KLOG_DEBUG_BUDGET, "Spent Budget - ", old_time);
+	
 	// Check if the old task is a valid PERIODIC thread. 
 	if(old_task->type == PERIODIC_TASK)
 	{
@@ -382,7 +394,7 @@ void _OS_SetAlarm(OS_PeriodicTask *task,
 
 ///////////////////////////////////////////////////////////////////////////////
 // Set the timer to next earliest timeout requested in either the
-// ready queue or the wait queue
+// ready queue or the wait queue. This function should be called with interrupts disabled
 ///////////////////////////////////////////////////////////////////////////////
 void _OS_SetNextTimeout(void)
 {
@@ -398,16 +410,10 @@ void _OS_SetNextTimeout(void)
 	if((time_in_us > g_global_time) && \
 		(time_in_us < g_next_wakeup_time))	
 	{
-		// Also check if the timeout is > maximum timeout the clock can support
-		UINT32 diff_time = (UINT32)(time_in_us - g_global_time);
-		if(diff_time > MAX_TIMER0_INTERVAL_uS)
-		{
-			diff_time = MAX_TIMER0_INTERVAL_uS;
-		}
-					
 		// Schedule the next interrupt
+		UINT32 diff_time = (UINT32)(time_in_us - g_global_time);							
+		_OS_UpdateTimer(&diff_time);	// Note that _OS_UpdateTimer may choose a shorter timeout
 		g_next_wakeup_time = g_global_time + diff_time;
-		_OS_UpdateTimer(diff_time);
 	}
 }
 

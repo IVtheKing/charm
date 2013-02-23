@@ -52,7 +52,6 @@
 // Following values depend a lot on the timer resolution which is not very good in this case
 #define TASK_MIN_PERIOD		100	// 100 uSec
 #define TASK_MIN_BUDGET		100 // 100 uSec
-#define TIME_RESOLUTION_IN_US	250	// 250uSec
 
 // TODO: I should handle the case where these are bigger values. Should be possible by taking care while setting 
 // timers
@@ -74,10 +73,12 @@ typedef enum
 	
 } Klog_MaskType;
 
+#define OS_ENABLE_ASSERTS			1
 #define OS_ENABLE_CPU_STATS			0		// TODO: Enable CPU Stats
 #define OS_WITH_VALIDATE_TASK		1
-#define	OS_KERNEL_LOGGING			0
-#define	OS_KLOG_MASK				(KLOG_OS_TIMER_SET)
+
+#define	OS_KERNEL_LOGGING			1
+#define	OS_KLOG_MASK				(KLOG_BUDGET_TIMER_ISR | KLOG_DEBUG_BUDGET)
 #define DEBUG_UART_CHANNEL			0
 
 #endif // _OS_CONFIG_H
