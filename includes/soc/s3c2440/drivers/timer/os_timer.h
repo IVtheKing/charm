@@ -22,15 +22,9 @@ void _OS_InitTimer ();
 // Output:
 //		delay_in_us: Is the actual delay setup. Since every timer has a maximum interval,
 //		the delay setup may be less than the delay requested.
-BOOL _OS_UpdateTimer(UINT32 * delay_in_us);
-
-// The following function sets up the budget timer.
-// Input:
-// 		delay_in_us: Is the delay requested
-// Output:
-//		delay_in_us: Is the actual delay setup. Since every timer has a maximum interval,
-//		the delay setup may be less than the delay requested.
-UINT32 _OS_SetBudgetTimer(UINT32 * delay_in_us);
+// Return Value:
+//		The budget spent if applicable
+UINT32 _OS_UpdateTimer(UINT32 * delay_in_us);
 
 // This function should be called whenever the timer o/1 interrupt happens.
 // This function clears the interrupt bits

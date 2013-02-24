@@ -66,9 +66,7 @@ typedef enum
 	KLOG_CONTEXT_SWITCH 	= (1 << 0),
 	KLOG_OS_TIMER_ISR 		= (1 << 1),
 	KLOG_TBE_EXCEPTION		= (1 << 2),
-	KLOG_DEBUG_BUDGET 		= (1 << 3),
-	KLOG_OS_TIMER_SET 		= (1 << 4),
-	KLOG_BUDGET_TIMER_SET 	= (1 << 5),
+	KLOG_OS_TIMER_SET 		= (1 << 3),
 	
 	KLOG_MISC 				= (1 << 31)
 	
@@ -79,7 +77,7 @@ typedef enum
 #define OS_WITH_VALIDATE_TASK		1
 
 #define	OS_KERNEL_LOGGING			0
-#define	OS_KLOG_MASK				(KLOG_TBE_EXCEPTION | KLOG_DEBUG_BUDGET)
+#define	OS_KLOG_MASK				0
 #define DEBUG_UART_CHANNEL			0
 
 #endif // _OS_CONFIG_H

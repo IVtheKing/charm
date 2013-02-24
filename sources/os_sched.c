@@ -205,7 +205,7 @@ void _OS_Timer0ISRHook(void *arg)
 			}
 			else
 			{
-				_OS_SetAlarm(task, task->alarm_time + task->period - task->deadline, FALSE, FALSE);
+				_OS_SetAlarm(task, (task->alarm_time + task->period - task->deadline), FALSE, FALSE);
 			}			
 		}
 	}
@@ -334,8 +334,21 @@ void _OS_SetNextTimeout(void)
 		(timeout_in_us < g_next_wakeup_time))	
 	{
 		// Schedule the next interrupt
-		g_current_timeout = (UINT32)(timeout_in_us - g_global_time);							
-		_OS_UpdateTimer(&g_current_timeout);	// Note that _OS_UpdateTimer may choose a shorter timeout
+		g_current_timeout = (UINT32)(timeout_in_us - g_global_time);
+		UINT32 budget_spent = _OS_UpdateTimer(&g_current_timeout);	// Note that _OS_UpdateTimer may choose a shorter timeout
+		OS_PeriodicTask * cur_task = (OS_PeriodicTask *)g_current_task;
+		if(cur_task->type == PERIODIC_TASK) 
+		{
+			if((task != cur_task) && (budget_spent > 0))
+			{
+				cur_task->accumulated_budget += budget_spent;
+				cur_task->remaining_budget -= budget_spent;
+			}
+			else
+			{
+				panic("task == cur_task: Unexpected condition");
+			}
+		}
 		g_next_wakeup_time = g_global_time + g_current_timeout;
 	}
 }

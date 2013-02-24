@@ -22,6 +22,10 @@
 #define CONVERT_us_TO_TICKS(us)		((((UINT64)TIMER01_TICK_RATE * (us)) + (1000000-1)) / 1000000)	
 #define CONVERT_TICKS_TO_us(tick)	((((tick) * 1000000ull) + (TIMER01_TICK_RATE - 1)) / TIMER01_TICK_RATE)
 
+// For testing
+// #define CONVERT_us_TO_TICKS(us)		((us) >> 1)	
+// #define CONVERT_TICKS_TO_us(tick)	((tick) << 1)
+
 #define MAX_TIMER_COUNT		0xffff
 
 #define TIMER0_START		0x001
@@ -101,10 +105,13 @@ void _OS_TimerInterrupt(UINT32 timer)
 // Output:
 //		delay_in_us: Is the actual delay setup. Since every timer has a maximum interval,
 //		the delay setup may be less than the delay requested.
+// Return Value:
+//		The budget spent if applicable
 ///////////////////////////////////////////////////////////////////////////////
-BOOL _OS_UpdateTimer(UINT32 * delay_in_us)
+UINT32 _OS_UpdateTimer(UINT32 * delay_in_us)
 {
 	UINT32 elapsed_count;
+	UINT32 budget_spent_us;
 	
 	ASSERT(delay_in_us);
 	
@@ -133,32 +140,31 @@ BOOL _OS_UpdateTimer(UINT32 * delay_in_us)
 	{
 		// Case 1
 		elapsed_count = (MAX_TIMER_COUNT - rTCNTO0);	// Take this time from the new task
+		budget_spent_us = 0;							// Extra time is accounted for in the new task
 	}
 	else if(timer0_count_buffer > 0)
 	{
-		if(rTCNTO0 > timer0_count_buffer)
+		UINT32 tcount = rTCNTO0;
+		if(tcount > timer0_count_buffer)
 		{
 			// Case 2
-			elapsed_count = (MAX_TIMER_COUNT - rTCNTO0);	// Take this time from the new task
+			elapsed_count = (MAX_TIMER_COUNT - tcount);		// Take this time from the new task
+			budget_spent_us = 0;							// Extra time is accounted for in the new task
 		}
 		else
 		{
 			// Case 3. We must have requested shorter timeout.
-			elapsed_count = (timer0_count_buffer - rTCNTO0);
+			elapsed_count = 0;								// Extra time is accounted for in the old task
+			tcount = (timer0_count_buffer - tcount);		// The time spent till now should be accounted for in the old task
+			budget_spent_us = CONVERT_TICKS_TO_us(tcount);	// Convert it to us right away.
 		}
 	}
 	else
 	{
 		// Case 4. The previous task must have been an Aperiodic task
 		elapsed_count = 0;
+		budget_spent_us = 0;
 	}
-
-#if OS_ENABLE_CPU_STATS==1	
-	if((elapsed_count > 0) && (max_scheduler_elapsed_time < elapsed_count))
-	{
-		max_scheduler_elapsed_time = elapsed_count;
-	}
-#endif
 
 	if(*delay_in_us == 0)
 	{
@@ -199,7 +205,15 @@ BOOL _OS_UpdateTimer(UINT32 * delay_in_us)
 		rTCNTB0 = MAX_TIMER_COUNT;		
 	}
 	
-	return 1;
+	// Keep track of max_scheduler_elapsed_time
+#if OS_ENABLE_CPU_STATS==1	
+	if((elapsed_count > 0) && (max_scheduler_elapsed_time < elapsed_count))
+	{
+		max_scheduler_elapsed_time = elapsed_count;
+	}
+#endif	
+	
+	return budget_spent_us;
 }
 
 ///////////////////////////////////////////////////////////////////////////////
