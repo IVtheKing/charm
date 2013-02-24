@@ -43,6 +43,7 @@
 #define MIN_PRIORITY				255
 #define OS_IDLE_TASK_STACK_SIZE		0x40		// In Words
 #define OS_STAT_TASK_STACK_SIZE		0x40		// In Words
+#define STAT_TASK_PERIOD	5000000	// 5 sec
 #define OS_WITH_TASK_NAME			1
 #define OS_TASK_NAME_SIZE			8
 
@@ -64,7 +65,7 @@ typedef enum
 {
 	KLOG_CONTEXT_SWITCH 	= (1 << 0),
 	KLOG_OS_TIMER_ISR 		= (1 << 1),
-	KLOG_BUDGET_TIMER_ISR 	= (1 << 2),
+	KLOG_TBE_EXCEPTION		= (1 << 2),
 	KLOG_DEBUG_BUDGET 		= (1 << 3),
 	KLOG_OS_TIMER_SET 		= (1 << 4),
 	KLOG_BUDGET_TIMER_SET 	= (1 << 5),
@@ -74,11 +75,11 @@ typedef enum
 } Klog_MaskType;
 
 #define OS_ENABLE_ASSERTS			1
-#define OS_ENABLE_CPU_STATS			0		// TODO: Enable CPU Stats
+#define OS_ENABLE_CPU_STATS			1		// Enable OS & CPU Stats
 #define OS_WITH_VALIDATE_TASK		1
 
-#define	OS_KERNEL_LOGGING			1
-#define	OS_KLOG_MASK				(KLOG_BUDGET_TIMER_ISR | KLOG_DEBUG_BUDGET)
+#define	OS_KERNEL_LOGGING			0
+#define	OS_KLOG_MASK				(KLOG_TBE_EXCEPTION | KLOG_DEBUG_BUDGET)
 #define DEBUG_UART_CHANNEL			0
 
 #endif // _OS_CONFIG_H

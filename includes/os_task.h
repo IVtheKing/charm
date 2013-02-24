@@ -18,8 +18,6 @@
 #define ONE_KB	1024
 #define ONE_MB	ONE_KB * ONE_KB
 
-#define STAT_TASK_PERIOD	1000000	// 1 sec
-
 #if OS_WITH_VALIDATE_TASK==1
 #define TASK_SIGNATURE	0xFEEDBACC
 #endif
