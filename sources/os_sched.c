@@ -68,6 +68,10 @@ void OS_Start()
 		// Reset the current task
 		g_current_task = 0;
 		
+#if OS_ENABLE_CPU_STATS==1
+		_OS_StatInit();
+#endif
+		
 		// Initialize the IDLE task TCB. This is done here so that the 
 		g_TCB_idle_task.id = 0;
 		g_TCB_idle_task.priority = MIN_PRIORITY + 1;

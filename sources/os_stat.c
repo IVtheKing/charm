@@ -19,9 +19,20 @@ volatile UINT32 max_scheduler_elapsed_time;
 volatile UINT32 scheduler_miss_counter;
 
 // Variables to keep track of the idle task execution
-volatile UINT32 g_idle_max_count = 0;
-volatile UINT32 g_idle_count = 0;
+volatile UINT32 g_idle_max_count;
+volatile UINT32 g_idle_count;
 volatile FP32 _OS_CPUUsage;
+
+///////////////////////////////////////////////////////////////////////////////
+// Statistics variable initialization
+///////////////////////////////////////////////////////////////////////////////
+void _OS_StatInit(void)
+{
+	max_scheduler_elapsed_time = 0;
+	scheduler_miss_counter = 0;
+	g_idle_max_count = 0;
+	g_idle_count = 0;
+}
 
 ///////////////////////////////////////////////////////////////////////////////
 // Statistics task

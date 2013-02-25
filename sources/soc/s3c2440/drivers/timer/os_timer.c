@@ -22,10 +22,6 @@
 #define CONVERT_us_TO_TICKS(us)		((((UINT64)TIMER01_TICK_RATE * (us)) + (1000000-1)) / 1000000)	
 #define CONVERT_TICKS_TO_us(tick)	((((tick) * 1000000ull) + (TIMER01_TICK_RATE - 1)) / TIMER01_TICK_RATE)
 
-// For testing
-// #define CONVERT_us_TO_TICKS(us)		((us) >> 1)	
-// #define CONVERT_TICKS_TO_us(tick)	((tick) << 1)
-
 #define MAX_TIMER_COUNT		0xffff
 
 #define TIMER0_START		0x001
@@ -57,12 +53,7 @@ void _OS_InitTimer ()
 		rINTPND = (3 << 10);
 		
 		timer0_count_buffer = 0;
-		
-#if OS_ENABLE_CPU_STATS==1
-		scheduler_miss_counter = 0;
-		max_scheduler_elapsed_time = 0;
-#endif
-		
+				
 		// Configure the two prescalars
 		rTCFG0 = (rTCFG0 & 0xffffff00) | TIMER_PRESCALAR_0;	 // Prescaler=1/256 for Timer0 & Timer1
 		rTCFG1 = (rTCFG1 & 0xffffff00) | (TIMER1_DIVIDER << 4) | TIMER0_DIVIDER;  // Mux=1/8 for Timer0 & Timer1

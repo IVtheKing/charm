@@ -27,6 +27,7 @@ extern OS_PeriodicTask g_stat_task;		// A TCB for the idle task
 extern UINT32 g_stat_task_stack [OS_STAT_TASK_STACK_SIZE];
 
 // OS Statistics Capture function
+void _OS_StatInit(void);
 void _OS_StatisticsFn(void * ptr);
 
 #endif
