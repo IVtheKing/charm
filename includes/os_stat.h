@@ -15,8 +15,8 @@
 #if OS_ENABLE_CPU_STATS==1
 
 // Some statistics counters to keep track.
-extern volatile UINT32 max_scheduler_elapsed_time;
-extern volatile UINT32 scheduler_miss_counter;
+extern UINT32 max_scheduler_elapsed_time;
+extern UINT32 scheduler_miss_counter;
 
 // Variables to keep track of the idle task execution
 extern volatile UINT32 g_idle_max_count;

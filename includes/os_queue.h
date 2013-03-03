@@ -27,16 +27,16 @@
 typedef struct _OS_QueueNode _OS_QueueNode;
 struct _OS_QueueNode
 {	
-	volatile _OS_QueueNode * next;   
-	volatile UINT64 key;				
+	_OS_QueueNode * next;   
+	UINT64 key;				
 };
 
 // Public typedefs
 typedef struct
 {
-	volatile _OS_QueueNode * head;
-	volatile _OS_QueueNode * tail;
-	volatile UINT32 count;
+	_OS_QueueNode * head;
+	_OS_QueueNode * tail;
+	UINT32 count;
 } _OS_Queue;
 
 ///////////////////////////////////////////////////////////////////////////////

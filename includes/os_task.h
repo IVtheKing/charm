@@ -45,8 +45,8 @@ struct OS_PeriodicTask
 	// attributes in the same order. This is done so that we can have a single
 	// queue implementation for all types of objects as long as the below two
 	// members are part of those objects.
-	volatile OS_PeriodicTask * next;	// Do NOT REORDER THESE TWO MEMBERS
-	volatile UINT64 alarm_time;	// To be used for maintaining a queue ordered based on this key value
+	OS_PeriodicTask * next;	// Do NOT REORDER THESE TWO MEMBERS
+	UINT64 alarm_time;	// To be used for maintaining a queue ordered based on this key value
 
 	UINT32 *top_of_stack;	// Do NOT REORDER THIS MEMBER, THE OFFSET 'SP_OFFSET_IN_TCB' IS USED IN ASSEMBLY
 
@@ -79,7 +79,7 @@ struct OS_PeriodicTask
 	UINT32 exec_count;
 	UINT32 TBE_count;
 	UINT32 dline_miss_count;
-	//volatile UINT64 next_release_time;
+	// UINT64 next_release_time;
 };
 
 typedef struct OS_AperiodicTask OS_AperiodicTask;
@@ -90,8 +90,8 @@ struct OS_AperiodicTask
 	// attributes in the same order. This is done so that we can have a single
 	// queue implementation for all types of objects as long as the below two
 	// members are part of those objects.
-	volatile OS_AperiodicTask * next;	// Do NOT REORDER THESE TWO MEMBERS
-	volatile UINT64 priority;	// To be used for maintaining a queue ordered based on this key value
+	OS_AperiodicTask * next;	// Do NOT REORDER THESE TWO MEMBERS
+	UINT64 priority;	// To be used for maintaining a queue ordered based on this key value
 
 	// Folliwing attributes are common in both type of tasks. They should be in the same order
 	UINT32 *top_of_stack;	// Do NOT REORDER THIS MEMBER, THE OFFSET 'SP_OFFSET_IN_TCB' IS USED IN Assembly

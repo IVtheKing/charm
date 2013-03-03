@@ -26,7 +26,7 @@ OS_Error _OS_QueueInit(_OS_Queue * q)
 // location at which it will be inserted. This is a sorted queue on key value.
 OS_Error _OS_QueueInsert(_OS_Queue * q, void * item, UINT64 key)
 {
-	volatile Node *node, *new_node, *prev = 0;
+	Node *node, *new_node, *prev = 0;
     if(!q) return ARGUMENT_ERROR;
 	if(!item) return ARGUMENT_ERROR;
 
@@ -57,7 +57,7 @@ OS_Error _OS_QueueInsert(_OS_Queue * q, void * item, UINT64 key)
 // Function to insert an element into the tail end of the queue.
 OS_Error _OS_QueueInsertTail(_OS_Queue * q, void * item)
 {
-	volatile Node *new_node;
+	Node *new_node;
     if(!q) return ARGUMENT_ERROR;
 	if(!item) return ARGUMENT_ERROR;
 
@@ -79,8 +79,8 @@ OS_Error _OS_QueueInsertTail(_OS_Queue * q, void * item)
 // Function to delete an item from the queue.
 OS_Error _OS_QueueDelete(_OS_Queue * q, void * item)
 {
-    volatile Node * node, * prev = 0;
-	volatile Node * item_node = (Node*)item;
+    Node * node, * prev = 0;
+	Node * item_node = (Node*)item;
     if(!q) return ARGUMENT_ERROR;
 	
 	node = q->head;
@@ -112,7 +112,7 @@ OS_Error _OS_QueueDelete(_OS_Queue * q, void * item)
 // Function to get the first element from the Queue. 
 OS_Error _OS_QueueGet(_OS_Queue * q, void ** item, UINT64 * key)
 {
-    volatile Node * node;
+    Node * node;
     if(!q) return ARGUMENT_ERROR;
 	
 	node = q->head;

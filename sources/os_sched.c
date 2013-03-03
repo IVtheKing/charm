@@ -20,12 +20,12 @@ _OS_Queue g_ap_ready_q;
 _OS_Queue g_block_q;
 
 // This global variable can be accessed from outside
-volatile BOOL _OS_IsRunning = FALSE;
+BOOL _OS_IsRunning = FALSE;
 
-volatile UINT64 g_global_time;		// This variable gets updated everytime the Timer ISR is called.
-volatile UINT64 g_next_wakeup_time; // This variable holds the next scheduled wakeup time in uSecs
+UINT64 g_global_time;		// This variable gets updated everytime the Timer ISR is called.
+UINT64 g_next_wakeup_time; // This variable holds the next scheduled wakeup time in uSecs
 volatile void * g_current_task;
-volatile UINT32	g_current_timeout;	// The time for which the timer is currently setup
+UINT32	g_current_timeout;	// The time for which the timer is currently setup
 
 OS_AperiodicTask g_TCB_idle_task;	// A TCB for the idle task
 UINT32 g_idle_task_stack [OS_IDLE_TASK_STACK_SIZE];
@@ -67,11 +67,7 @@ void OS_Start()
 
 		// Reset the current task
 		g_current_task = 0;
-		
-#if OS_ENABLE_CPU_STATS==1
-		_OS_StatInit();
-#endif
-		
+				
 		// Initialize the IDLE task TCB. This is done here so that the 
 		g_TCB_idle_task.id = 0;
 		g_TCB_idle_task.priority = MIN_PRIORITY + 1;
@@ -176,7 +172,7 @@ void _OS_Timer0ISRHook(void *arg)
 		
 	// Acknowledge the interrupt
 	_OS_TimerInterrupt(0);
-
+	
 	g_global_time = g_next_wakeup_time;	
 	g_next_wakeup_time = (UINT64)-1;
 	

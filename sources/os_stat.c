@@ -15,8 +15,9 @@ OS_PeriodicTask g_stat_task;		// A TCB for the idle task
 UINT32 g_stat_task_stack [OS_STAT_TASK_STACK_SIZE];
 
 // Some statistics counters to keep track.
-volatile UINT32 max_scheduler_elapsed_time;
-volatile UINT32 scheduler_miss_counter;
+UINT32 max_scheduler_elapsed_time;
+UINT32 scheduler_miss_counter;
+static UINT32 stat_task_count;
 
 // Variables to keep track of the idle task execution
 volatile UINT32 g_idle_max_count;
@@ -41,9 +42,17 @@ void _OS_StatInit(void)
 ///////////////////////////////////////////////////////////////////////////////
 void _OS_StatisticsFn(void * ptr)
 {
+	if(stat_task_count++ == 0)
+	{
+		// Initialize the stat counters during the first invocation of the stat task. 
+		// This is because we don't want to consider the affect of compulsory cache misses.
+		_OS_StatInit();
+		return;
+	}
 	
 	Syslog32("STAT: max_scheduler_elapsed_time = ", max_scheduler_elapsed_time);
 	Syslog32("STAT: scheduler_miss_counter = ", scheduler_miss_counter);
+
 	
 	// TODO: This logic is now outdated as the OS uses wait_for_interrupt in idle task
 // 	static UINT64 prev_elapsed_time = 0;

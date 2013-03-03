@@ -34,8 +34,8 @@ extern _OS_Queue g_ready_q;
 extern _OS_Queue g_wait_q;
 extern _OS_Queue g_ap_ready_q;
 extern _OS_Queue g_block_q;
-extern volatile UINT64 g_global_time;	// This variable gets updated everytime the Timer ISR is called.
-extern volatile UINT64 g_next_wakeup_time; // This variable holds the next scheduled wakeup time in uSecs
+extern UINT64 g_global_time;	// This variable gets updated everytime the Timer ISR is called.
+extern UINT64 g_next_wakeup_time; // This variable holds the next scheduled wakeup time in uSecs
 extern void _OS_ReSchedule();
 extern void _OS_SetAlarm(OS_PeriodicTask *task, UINT64 abs_time_in_us, BOOL is_new_job, BOOL update_timer);
 
