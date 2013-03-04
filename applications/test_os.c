@@ -168,9 +168,9 @@ int test_TBE(int argc, char *argv[])
 
 int main(int argc, char *argv[])
 {
-//	test_casual(argc, argv);
+	test_casual(argc, argv);
 //	test_short_intervals(argc, argv);
-	test_long_intervals(argc, argv);
+//	test_long_intervals(argc, argv);
 //	test_long_budget(argc, argv);
 //	test_TBE(argc, argv);
 	return 0;

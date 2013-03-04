@@ -111,7 +111,7 @@ $(BOOT_TARGET): $(BOOT_OBJS)
 	$(LINK) -nostartfiles -nostdlib -Ttext 0x00000000 $(BOOT_OBJS) -o $@
 
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(DST)
 
 ## Validate the arguments for build
 ifneq ($(CONFIG),debug)
