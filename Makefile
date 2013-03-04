@@ -59,7 +59,7 @@ LDFLAGS		:=	-nostartfiles -nostdlib -T$(LINKERS_CRIPT) -Map $(MAP_FILE) -L $(LIB
 ifeq ($(CONFIG),debug)
 	CFLAGS	:=	-g -O0 $(CFLAGS)
 else ifeq ($(CONFIG),release)
-	CFLAGS	:=	-O2
+	CFLAGS	:=	-O2 $(CFLAGS)
 endif
 
 

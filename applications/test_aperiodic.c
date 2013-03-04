@@ -72,8 +72,6 @@ int main(int argc, char *argv[])
 	ret = OS_CreateAperiodicTask(3, stack3, sizeof(stack3), &task3, task_fn3, &c);
 	ret = OS_CreateAperiodicTask(4, stack4, sizeof(stack4), &task4, task_fn4, &d);
 
-	
-	
 	OS_Start();
 
 	return ret;

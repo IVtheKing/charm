@@ -356,12 +356,3 @@ UINT64 OS_GetThreadElapsedTime()
 	}
 	return thread_elapsed_time;
 }
-
-///////////////////////////////////////////////////////////////////////////////
-// Function to get the currently running thread. It returns a void pointer 
-// which may be used as a Periodic / Aperiodic Task pointers
-///////////////////////////////////////////////////////////////////////////////
-void * OS_GetCurrentTask()
-{
-	return (void *)g_current_task;
-}

@@ -12,6 +12,25 @@
 #include "uart.h"
 #include "util.h"
 
+///////////////////////////////////////////////////////////////////////////////
+// Function to get the currently running thread. It returns a void pointer 
+// which may be used as a Periodic / Aperiodic Task pointers
+///////////////////////////////////////////////////////////////////////////////
+void * OS_GetCurrentTask()
+{
+	return (void *)g_current_task;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Function to get the TBE count for the currently running task.
+// It will be zero for an Aperiodic task.
+///////////////////////////////////////////////////////////////////////////////
+UINT32 OS_GetTBECount()
+{
+	OS_PeriodicTask * task = (OS_PeriodicTask *)g_current_task;
+	return (task->type == PERIODIC_TASK) ? task->TBE_count : 0;
+}
+
 void panic(const INT8 * format, ...)
 {
 	// TODO: Need to print whole formatted string
