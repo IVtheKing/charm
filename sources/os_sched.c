@@ -306,6 +306,14 @@ void _OS_SetAlarm(OS_PeriodicTask *task,
 	}
 }
 
+void _OS_Timer1ISRHook(void *arg)
+{
+	KlogStr(KLOG_SYNC_TIMER_ISR, "SYNC Timer ISR", " entered");
+		
+	// Acknowledge the interrupt
+	_OS_TimerInterrupt(1);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Set the timer to next earliest timeout requested in either the
 // ready queue or the wait queue. This function should be called with interrupts disabled

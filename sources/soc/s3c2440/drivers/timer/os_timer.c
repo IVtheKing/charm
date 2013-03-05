@@ -19,8 +19,8 @@
 
 // TODO: I need to make below calculations extremely efficient.
 // Use 64 bit calculation for accuracy and always round up
-#define CONVERT_us_TO_TICKS(us)		((((UINT64)TIMER01_TICK_RATE * (us)) + (1000000-1)) / 1000000)	
-#define CONVERT_TICKS_TO_us(tick)	((((tick) * 1000000ull) + (TIMER01_TICK_RATE - 1)) / TIMER01_TICK_RATE)
+#define CONVERT_us_TO_TICKS(us)		((((UINT64)TIMER0_TICK_FREQ * (us)) + (1000000-1)) / 1000000)
+#define CONVERT_TICKS_TO_us(tick)	((((tick) * 1000000ull) + (TIMER0_TICK_FREQ - 1)) / TIMER0_TICK_FREQ)
 
 #define MAX_TIMER_COUNT		0xffff
 
@@ -35,6 +35,7 @@
 static UINT32 timer0_count_buffer;
 
 UINT32 _OS_Timer0ISRHook(void *arg);
+UINT32 _OS_Timer1ISRHook(void *arg);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Function to initialize the timers 0 & 1
@@ -60,6 +61,21 @@ void _OS_InitTimer ()
 		
 		// Set the interrupt handlers. This also unmasks that interrupt
 		OS_SetInterruptVector(_OS_Timer0ISRHook, TIMER0_INT_VECTOR_INDEX);
+		
+#if ENABLE_SYNC_TIMER==1		// Setup SYNC timer
+
+		// The below expression will be evaluated at compile time
+		rTCNTB1 = ((((UINT64)TIMER1_TICK_FREQ * (SYNC_TIMER_INTERVAL)) + (1000000-1)) / 1000000);
+		
+		OS_SetInterruptVector(_OS_Timer1ISRHook, TIMER1_INT_VECTOR_INDEX);
+		
+		// Inform that Timer 1 Buffer has changed by updating manual update bit
+		rTCON = (rTCON & (~0xf00)) | TIMER1_UPDATE;
+		
+		// Start timer 1
+		rTCON = (rTCON & (~0xf00)) | (TIMER1_START | TIMER1_AUTORELOAD); 
+		
+#endif // ENABLE_SYNC_TIMER
 
 		// Set the initialized flag
 		initialized = 1;
@@ -181,7 +197,8 @@ UINT32 _OS_UpdateTimer(UINT32 * delay_in_us)
 			
 #if OS_ENABLE_CPU_STATS==1			
 			scheduler_miss_counter ++;
-#endif
+#endif	// OS_ENABLE_CPU_STATS
+
 			Syslog32("KERNEL WARNING: Requested timeout is in the past ", elapsed_count);
 		}
 		
@@ -202,7 +219,7 @@ UINT32 _OS_UpdateTimer(UINT32 * delay_in_us)
 	{
 		max_scheduler_elapsed_time = elapsed_count;
 	}
-#endif	
+#endif	// OS_ENABLE_CPU_STATS
 	
 	return budget_spent_us;
 }
