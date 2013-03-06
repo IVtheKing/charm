@@ -34,8 +34,8 @@
 
 static UINT32 timer0_count_buffer;
 
-UINT32 _OS_Timer0ISRHook(void *arg);
-UINT32 _OS_Timer1ISRHook(void *arg);
+UINT32 _OS_Timer0ISRHandler(void *arg);
+UINT32 _OS_Timer1ISRHandler(void *arg);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Function to initialize the timers 0 & 1
@@ -60,27 +60,41 @@ void _OS_InitTimer ()
 		rTCFG1 = (rTCFG1 & 0xffffff00) | (TIMER1_DIVIDER << 4) | TIMER0_DIVIDER;  // Mux=1/8 for Timer0 & Timer1
 		
 		// Set the interrupt handlers. This also unmasks that interrupt
-		OS_SetInterruptVector(_OS_Timer0ISRHook, TIMER0_INT_VECTOR_INDEX);
+		OS_SetInterruptVector(_OS_Timer0ISRHandler, TIMER0_INT_VECTOR_INDEX);
 		
 #if ENABLE_SYNC_TIMER==1		// Setup SYNC timer
-
-		// The below expression will be evaluated at compile time
-		rTCNTB1 = ((((UINT64)TIMER1_TICK_FREQ * (SYNC_TIMER_INTERVAL)) + (1000000-1)) / 1000000);
-		
-		OS_SetInterruptVector(_OS_Timer1ISRHook, TIMER1_INT_VECTOR_INDEX);
-		
-		// Inform that Timer 1 Buffer has changed by updating manual update bit
-		rTCON = (rTCON & (~0xf00)) | TIMER1_UPDATE;
-		
-		// Start timer 1
-		rTCON = (rTCON & (~0xf00)) | (TIMER1_START | TIMER1_AUTORELOAD); 
-		
+		OS_SetInterruptVector(_OS_Timer1ISRHandler, TIMER1_INT_VECTOR_INDEX);		
 #endif // ENABLE_SYNC_TIMER
 
 		// Set the initialized flag
 		initialized = 1;
 	}
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// Start the SYNC timer
+// This function sets the first interrupt at SYNC_TIMER_INTERVAL + OS_FIRST_SCHED_DELAY
+// Subsequent interrupts would come at SYNC_TIMER_INTERVAL
+///////////////////////////////////////////////////////////////////////////////
+#if ENABLE_SYNC_TIMER==1
+void _OS_StartSyncTimer()
+{
+	// Below expression will be evaluated at compile time
+	rTCNTB1 = ((((UINT64)TIMER1_TICK_FREQ * (SYNC_TIMER_INTERVAL + OS_FIRST_SCHED_DELAY)) 
+				+ (1000000-1)) / 1000000);
+	
+	// Inform that Timer 1 Buffer has changed by updating manual update bit
+	rTCON = (rTCON & (~0xf00)) | TIMER1_UPDATE;
+	
+	// Start timer 1
+	rTCON = (rTCON & (~0xf00)) | (TIMER1_START | TIMER1_AUTORELOAD); 		
+	
+	// Now that the timer is running, subsequent interrupts should occur every SYNC_TIMER_INTERVAL
+	// Below expression will be evaluated at compile time
+	rTCNTB1 = ((((UINT64)TIMER1_TICK_FREQ * (SYNC_TIMER_INTERVAL + OS_FIRST_SCHED_DELAY)) 
+				+ (1000000-1)) / 1000000);
+}
+#endif // ENABLE_SYNC_TIMER
 
 ///////////////////////////////////////////////////////////////////////////////
 // Timer 0 & 1 Interrupt handler

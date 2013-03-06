@@ -58,7 +58,10 @@
 #define OS_TASK_NAME_SIZE			8
 
 // Time for the first scheduling interrupt to begin. This should be <= MAX_TIMER0_INTERVAL_uS
-#define OS_FIRST_SCHED_DELAY		10000
+// Just few micro seconds are enough. This is to adjust the time gap b/w the timer setup
+// and the OS to be ready to handle interrupts. If this delay is not enough, it will eat from
+// the budget of the first job. Few microseconds are enough actually.
+#define OS_FIRST_SCHED_DELAY		10000		// 10 ms
 
 // Following values depend a lot on the timer resolution which is not very good in this case
 #define TASK_MIN_PERIOD		100	// 100 uSec
@@ -87,8 +90,8 @@ typedef enum
 #define OS_ENABLE_CPU_STATS			1		// Enable OS & CPU Stats
 #define OS_WITH_VALIDATE_TASK		1
 
-#define	OS_KERNEL_LOGGING			1
-#define	OS_KLOG_MASK				KLOG_SYNC_TIMER_ISR
+#define	OS_KERNEL_LOGGING			0
+#define	OS_KLOG_MASK				(KLOG_SYNC_TIMER_ISR)
 #define DEBUG_UART_CHANNEL			0
 
 #endif // _OS_CONFIG_H

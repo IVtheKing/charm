@@ -16,6 +16,13 @@
 // Initializes both timer 0 & 1
 void _OS_InitTimer ();
 
+#if ENABLE_SYNC_TIMER==1
+
+// Function to start the SYNC timer
+void _OS_StartSyncTimer();
+
+#endif	// ENABLE_SYNC_TIMER
+
 // The following function sets up the OS timer.
 // Input:
 // 		delay_in_us: Is the delay requested

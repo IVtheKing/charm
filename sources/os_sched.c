@@ -23,7 +23,10 @@ _OS_Queue g_block_q;
 BOOL _OS_IsRunning = FALSE;
 
 UINT64 g_global_time;		// This variable gets updated everytime the Timer ISR is called.
-UINT64 g_next_wakeup_time; // This variable holds the next scheduled wakeup time in uSecs
+UINT64 g_next_wakeup_time; 	// This variable holds the next scheduled wakeup time in uSecs
+#if ENABLE_SYNC_TIMER==1
+UINT64 g_next_sync_time;	// This is the next scheduled time when the SYNC should happen	
+#endif
 volatile void * g_current_task;
 UINT32	g_current_timeout;	// The time for which the timer is currently setup
 
@@ -38,8 +41,8 @@ extern UINT32 *_OS_BuildTaskStack(UINT32 * stack_ptr,
 							void (*task_function)(void *), 
 							void * arg, BOOL system_task);
 
-void _OS_Timer0ISRHook(void *arg);
-void _OS_Timer1ISRHook(void *arg);
+void _OS_Timer0ISRHandler(void *arg);
+void _OS_Timer1ISRHandler(void *arg);
 void _OS_SetAlarm(OS_PeriodicTask *task, 
 					UINT64 abs_time_in_us, 
 					BOOL is_new_job,
@@ -64,6 +67,9 @@ void OS_Start()
 		g_global_time = 0;
 		g_next_wakeup_time = 0;
 		g_current_timeout = 0;
+#if ENABLE_SYNC_TIMER==1
+		g_next_sync_time = SYNC_TIMER_INTERVAL;		// Time of first SYNC
+#endif
 
 		// Reset the current task
 		g_current_task = 0;
@@ -100,6 +106,11 @@ void OS_Start()
 		// Start scheduling by creating the first interrupt
 		UINT32 delay_start = OS_FIRST_SCHED_DELAY;
 		_OS_UpdateTimer(&delay_start);	// First timer after 10ms
+		
+#if ENABLE_SYNC_TIMER==1
+		// Start the SYNC timer
+		_OS_StartSyncTimer();
+#endif // ENABLE_SYNC_TIMER
 
 		_OS_IsRunning = TRUE;	// No need to protect this line and the above
 		// 'if' condition as this is called from the initialization for the
@@ -163,7 +174,7 @@ void _OS_ReSchedule()
 // and set the new delay required for the next timer expiry in number of
 // microseconds.
 ///////////////////////////////////////////////////////////////////////////////
-void _OS_Timer0ISRHook(void *arg)
+void _OS_Timer0ISRHandler(void *arg)
 {
 	OS_PeriodicTask * task;
 	UINT64 new_time = 0;
@@ -306,14 +317,6 @@ void _OS_SetAlarm(OS_PeriodicTask *task,
 	}
 }
 
-void _OS_Timer1ISRHook(void *arg)
-{
-	KlogStr(KLOG_SYNC_TIMER_ISR, "SYNC Timer ISR", " entered");
-		
-	// Acknowledge the interrupt
-	_OS_TimerInterrupt(1);
-}
-
 ///////////////////////////////////////////////////////////////////////////////
 // Set the timer to next earliest timeout requested in either the
 // ready queue or the wait queue. This function should be called with interrupts disabled
@@ -337,11 +340,27 @@ void _OS_SetNextTimeout(void)
 		timeout_in_us = budget_timeout;
 	}
 	
+	// If the requested timeout is crossing g_next_sync_time, then we need to adjust the
+	// requested timeout in order to guarantee that we schedule an interrupt at the SYNC time
+#if ENABLE_SYNC_TIMER==1	
+	if((g_global_time < g_next_sync_time) && (timeout_in_us > g_next_sync_time))
+	{
+		timeout_in_us = g_next_sync_time;
+		
+		if(timeout_in_us < g_next_wakeup_time)
+		{
+			// When the next scheduled timeout is same as the SYNC timeout, we will not set TIMER 0.
+			// We will wait for SYNC timer interrupt.
+			g_next_wakeup_time = g_global_time + g_current_timeout;
+			return;
+		}
+	}
+#endif // ENABLE_SYNC_TIMER
+
 	// Check if we want a shorter timeout than the one currently set
 	if((timeout_in_us > g_global_time) && \
 		(timeout_in_us < g_next_wakeup_time))	
 	{
-		// Schedule the next interrupt
 		g_current_timeout = (UINT32)(timeout_in_us - g_global_time);
 		UINT32 budget_spent = _OS_UpdateTimer(&g_current_timeout);	// Note that _OS_UpdateTimer may choose a shorter timeout
 		OS_PeriodicTask * cur_task = (OS_PeriodicTask *)g_current_task;
@@ -360,6 +379,26 @@ void _OS_SetNextTimeout(void)
 		g_next_wakeup_time = g_global_time + g_current_timeout;
 	}
 }
+
+///////////////////////////////////////////////////////////////////////////////
+// Timer 1 ISR
+///////////////////////////////////////////////////////////////////////////////
+#if ENABLE_SYNC_TIMER==1
+void _OS_Timer1ISRHandler(void *arg)
+{
+	KlogStr(KLOG_SYNC_TIMER_ISR, "SYNC Timer ISR", " entered");
+		
+	// Acknowledge the interrupt
+	_OS_TimerInterrupt(1);
+	
+	
+	// Time of next SYNC
+	g_next_sync_time += SYNC_TIMER_INTERVAL;
+
+	// Reschedule
+	_OS_ReSchedule();
+}
+#endif	// ENABLE_SYNC_TIMER
 
 ///////////////////////////////////////////////////////////////////////////////
 // The below function, gets the total elapsed time since the beginning
