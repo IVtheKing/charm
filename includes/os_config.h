@@ -45,7 +45,7 @@
 // timer ISR and deducts it from the next task budget. However, there can be a drift 
 // worth few of instructions b/w the time we read the timer and adjust and write it back.
 // Using another fixed interval timer, we can resynchronize periodically.
-#define ENABLE_SYNC_TIMER			0
+#define ENABLE_SYNC_TIMER			1
 #define SYNC_TIMER_INTERVAL			800000		// in Microseconds. 
 // NOTE: Above interval should be <= TIMER1 Max Interval
 
