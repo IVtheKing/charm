@@ -13,7 +13,8 @@
 
 OS_PeriodicTask task1;
 OS_PeriodicTask task2;
-OS_AperiodicTask task3;
+OS_PeriodicTask task3;
+OS_AperiodicTask task4;
 OS_Sem input_ready;
 char input_str[48];
 
@@ -72,6 +73,11 @@ static int test_counter = 0;
 void task_count(void * ptr)
 {
 	test_counter++;
+	user_led_toggle(*(int *)ptr);
+}
+
+void task_3(void * ptr)
+{
 	user_led_toggle(*(int *)ptr);
 }
 
@@ -228,6 +234,7 @@ error_exit:
 UINT32 stack1 [0x400];
 UINT32 stack2 [0x400];
 UINT32 stack3 [0x400];
+UINT32 stack4 [0x400];
 
 int a = 0;
 int b = 1;
@@ -242,8 +249,9 @@ int main(int argc, char *argv[])
 	SyslogStr("Calling - ",  __func__);
 
 	OS_CreatePeriodicTask( 100000, 100000, 20000, 0, stack1, sizeof(stack1), "LED1", &task1, task_fn1, &a);
-	OS_CreatePeriodicTask( 10000, 10000, 5000, 1000, stack2, sizeof(stack2), "LED2", &task2, task_count, &b);
-	OS_CreateAperiodicTask(1, stack3, sizeof(stack3), "Menu", &task3, task_rtc, &c);
+	OS_CreatePeriodicTask( 10000, 10000, 2000, 1000, stack2, sizeof(stack2), "LED2", &task2, task_count, &b);
+	OS_CreatePeriodicTask( 20000, 20000, 5000, 4000, stack3, sizeof(stack3), "LED3", &task3, task_3, &c);
+	OS_CreateAperiodicTask(1, stack4, sizeof(stack4), "Menu", &task4, task_rtc, &d);
 
 
 	OS_Start();

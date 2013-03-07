@@ -13,6 +13,12 @@
 #include "os_core.h"
 #include "os_types.h"
 
+enum
+{
+	TIMER0 = 0,
+	TIMER1 = 1
+};
+
 // Initializes both timer 0 & 1
 void _OS_InitTimer ();
 

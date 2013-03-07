@@ -124,12 +124,16 @@ OS_Error OS_SetAlarm(const OS_DateAndTime *date_and_time)
 {
 	// TODO:
 	panic("Not implemented");
+	
+	return NOT_SUPPORTED;
 }
 
 OS_Error OS_GetAlarm(OS_DateAndTime *date_and_time)
 {
 	// TODO:
 	panic("Not implemented");
+	
+	return NOT_SUPPORTED;
 }
 #endif // ENABLE_RTC_ALARM
 

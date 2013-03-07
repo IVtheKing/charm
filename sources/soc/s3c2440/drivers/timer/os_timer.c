@@ -34,8 +34,8 @@
 
 static UINT32 timer0_count_buffer;
 
-UINT32 _OS_Timer0ISRHandler(void *arg);
-UINT32 _OS_Timer1ISRHandler(void *arg);
+void _OS_Timer0ISRHandler(void *arg);
+void _OS_Timer1ISRHandler(void *arg);
 
 ///////////////////////////////////////////////////////////////////////////////
 // Function to initialize the timers 0 & 1
@@ -112,9 +112,24 @@ void _OS_TimerInterrupt(UINT32 timer)
 	
 	// Since there has been an interrupt, the timer must have reloaded MAX_TIMER_COUNT
 	// rTCNTB register. So reload the right value to use.
-	if(timer == 0) 
+	switch(timer)
 	{
-		timer0_count_buffer = rTCNTB0;
+		case TIMER0:
+			timer0_count_buffer = rTCNTB0;
+			break;
+#if ENABLE_SYNC_TIMER==1
+		case TIMER1:
+			// As part of SYNC timer interrupt handling, we will start OS Timer with
+			// highest timeout. This is done so that we can count for the elapsed time
+			// later when we setup os_timer
+			rTCNTB0 = MAX_TIMER_COUNT;
+			timer0_count_buffer = MAX_TIMER_COUNT;
+			rTCON = (rTCON & (~0x0f)) | TIMER0_UPDATE;
+			rTCON = (rTCON & (~0x0f)) | (TIMER0_START | TIMER0_AUTORELOAD); 		
+			break;
+#endif // ENABLE_SYNC_TIMER
+		default:
+			break;
 	}
 }
 
@@ -133,18 +148,24 @@ UINT32 _OS_UpdateTimer(UINT32 * delay_in_us)
 {
 	UINT32 elapsed_count;
 	UINT32 budget_spent_us;
+	UINT32 req_count;
 	
-	ASSERT(delay_in_us);
-	
-	// Each timer has a maximum interval. Adjust the budget timeout accordingly
-	if(*delay_in_us > MAX_TIMER0_INTERVAL_uS)
-	{
-		*delay_in_us = MAX_TIMER0_INTERVAL_uS;
+	if(delay_in_us)
+	{	
+		// Each timer has a maximum interval. Adjust the budget timeout accordingly
+		if(*delay_in_us > MAX_TIMER0_INTERVAL_uS)
+		{
+			*delay_in_us = MAX_TIMER0_INTERVAL_uS;
+		}
+
+		req_count = CONVERT_us_TO_TICKS(*delay_in_us);
+		Klog32(KLOG_OS_TIMER_SET, "OS Timer Set (us) - ", *delay_in_us);
 	}
-
-	UINT32 req_count = CONVERT_us_TO_TICKS(*delay_in_us);
-
-	Klog32(KLOG_OS_TIMER_SET, "OS Timer Set (us) - ", *delay_in_us);
+	else
+	{
+		req_count = 0;
+		Klog32(KLOG_OS_TIMER_SET, "OS Timer Set (disabled) - ", 0);
+	}
 	
 	// Clear the interrupt flag in the SRCPND and INTPND registers
 	rSRCPND = BIT_TIMER0;
@@ -187,7 +208,7 @@ UINT32 _OS_UpdateTimer(UINT32 * delay_in_us)
 		budget_spent_us = 0;
 	}
 
-	if(*delay_in_us == 0)
+	if(!delay_in_us || (*delay_in_us == 0))
 	{
 		// Disable the timer. 
 		rTCON &= ~0x0f;

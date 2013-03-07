@@ -26,6 +26,7 @@ UINT64 g_global_time;		// This variable gets updated everytime the Timer ISR is 
 UINT64 g_next_wakeup_time; 	// This variable holds the next scheduled wakeup time in uSecs
 #if ENABLE_SYNC_TIMER==1
 UINT64 g_next_sync_time;	// This is the next scheduled time when the SYNC should happen	
+BOOL g_sync_expected;
 #endif
 volatile void * g_current_task;
 UINT32	g_current_timeout;	// The time for which the timer is currently setup
@@ -179,10 +180,15 @@ void _OS_Timer0ISRHandler(void *arg)
 	OS_PeriodicTask * task;
 	UINT64 new_time = 0;
 	
-	KlogStr(KLOG_OS_TIMER_ISR, "OS Timer ISR - ", ((OS_AperiodicTask *)arg)->name);
+#if ENABLE_SYNC_TIMER==1	
+	if(!g_sync_expected)
+#endif	// ENABLE_SYNC_TIMER
+	{
+		KlogStr(KLOG_OS_TIMER_ISR, "OS Timer ISR - ", ((OS_AperiodicTask *)arg)->name);
 		
-	// Acknowledge the interrupt
-	_OS_TimerInterrupt(0);
+		// Acknowledge the interrupt
+		_OS_TimerInterrupt(TIMER0);
+	}
 	
 	g_global_time = g_next_wakeup_time;	
 	g_next_wakeup_time = (UINT64)-1;
@@ -343,17 +349,24 @@ void _OS_SetNextTimeout(void)
 	// If the requested timeout is crossing g_next_sync_time, then we need to adjust the
 	// requested timeout in order to guarantee that we schedule an interrupt at the SYNC time
 #if ENABLE_SYNC_TIMER==1	
-	if((g_global_time < g_next_sync_time) && (timeout_in_us > g_next_sync_time))
+	if((timeout_in_us >= g_next_sync_time) && (g_next_sync_time > g_global_time))
 	{
-		timeout_in_us = g_next_sync_time;
-		
-		if(timeout_in_us < g_next_wakeup_time)
+		if(!g_sync_expected)	// If we haven't already setup for SYNC interrupt
 		{
-			// When the next scheduled timeout is same as the SYNC timeout, we will not set TIMER 0.
+			// When the next scheduled timeout is the SYNC timeout, we will not set TIMER 0.
 			// We will wait for SYNC timer interrupt.
-			g_next_wakeup_time = g_global_time + g_current_timeout;
-			return;
+			g_current_timeout = (UINT32)(g_next_sync_time - g_global_time);
+			g_next_wakeup_time = g_next_sync_time;
+			
+			// Disable OS timer. Wait for SYNC timer interrupt.
+			_OS_UpdateTimer(NULL);
+			
+			// Note that we are expecting a SYNC interrupt. When we actually get the SYNC interrupt,
+			// if this variable is not set, then it indicates a scheduling problem.
+			g_sync_expected = TRUE;
 		}
+		
+		return;
 	}
 #endif // ENABLE_SYNC_TIMER
 
@@ -377,6 +390,9 @@ void _OS_SetNextTimeout(void)
 			}
 		}
 		g_next_wakeup_time = g_global_time + g_current_timeout;
+#if ENABLE_SYNC_TIMER==1			
+		g_sync_expected = FALSE;
+#endif // ENABLE_SYNC_TIMER
 	}
 }
 
@@ -387,16 +403,25 @@ void _OS_SetNextTimeout(void)
 void _OS_Timer1ISRHandler(void *arg)
 {
 	KlogStr(KLOG_SYNC_TIMER_ISR, "SYNC Timer ISR", " entered");
+	
+	if(!g_sync_expected)
+	{
+#if OS_ENABLE_CPU_STATS==1	
+		sync_timer_miss_counter++;
+#endif // OS_ENABLE_CPU_STATS
+	
+		Syslog32("KERNEL WARNING: SYNC interrupt not expected - ", g_current_timeout);		
+	}
 		
 	// Acknowledge the interrupt
-	_OS_TimerInterrupt(1);
-	
+	_OS_TimerInterrupt(TIMER1);
 	
 	// Time of next SYNC
 	g_next_sync_time += SYNC_TIMER_INTERVAL;
-
-	// Reschedule
-	_OS_ReSchedule();
+	
+	// Handle the interrupt as if this is regular OS timer interrupt
+	_OS_Timer0ISRHandler(arg);
+	
 }
 #endif	// ENABLE_SYNC_TIMER
 

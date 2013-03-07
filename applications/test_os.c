@@ -47,29 +47,13 @@ void task_long_budget(void * ptr)
 
 void task_TBE(void * ptr)
 {
-	static int count = 0;
+//	static int count = 0;
  	UINT32 dm = OS_GetTBECount();
 
 	user_led_toggle(*(int *)ptr);
 //	Syslog32("task_fn1 - ", count++);
 
  	while(dm == OS_GetTBECount());
-}
-
-void task_fn(void * ptr)
-{
-	OS_PeriodicTask * task = (OS_PeriodicTask *) g_current_task;
-	UINT32 dm;
-
-	while(1)
-	{
-		dm = OS_GetTBECount();
-		user_led_toggle(*(int *)ptr);
-
-		while(dm == OS_GetTBECount())
-		{
-		}
-	}
 }
 
 UINT32 stack1 [0x400];
