@@ -17,8 +17,14 @@ UINT32 g_stat_task_stack [OS_STAT_TASK_STACK_SIZE];
 // Some statistics counters to keep track.
 UINT32 max_scheduler_elapsed_time;
 UINT32 scheduler_miss_counter;
-UINT32 sync_timer_miss_counter;
+UINT32 sched_intr_counter;
 static UINT32 stat_task_count;
+
+#if ENABLE_SYNC_TIMER==1
+UINT32 sync_timer_miss_counter;
+UINT32 sync_intr_counter;
+#endif
+
 
 // Variables to keep track of the idle task execution
 volatile UINT32 g_idle_max_count;
@@ -32,7 +38,10 @@ void _OS_StatInit(void)
 {
 	max_scheduler_elapsed_time = 0;
 	scheduler_miss_counter = 0;
+#if ENABLE_SYNC_TIMER==1
 	sync_timer_miss_counter = 0;
+	sync_intr_counter = 0;
+#endif // ENABLE_SYNC_TIMER
 	g_idle_max_count = 0;
 	g_idle_count = 0;
 }
@@ -52,16 +61,19 @@ void _OS_StatisticsFn(void * ptr)
 		return;
 	}
 	
-	Syslog32("STAT: max_scheduler_elapsed_time = ", max_scheduler_elapsed_time);
+ 	Syslog32("STAT: max_scheduler_elapsed_time = ", max_scheduler_elapsed_time);	
+// 	Syslog32("STAT: sync_intr_counter = ", sync_intr_counter);
+//	Syslog32("STAT: sched_intr_counter = ", sched_intr_counter);
+
 	if(scheduler_miss_counter)
 	{
 		Syslog32("STAT: scheduler_miss_counter = ", scheduler_miss_counter);
 	}
 	if(sync_timer_miss_counter)
 	{
-		Syslog32("STAT: scheduler_miss_counter = ", sync_timer_miss_counter);
+		Syslog32("STAT: sync_timer_miss_counter = ", sync_timer_miss_counter);
 	}
-
+	
 	
 	// TODO: This logic is now outdated as the OS uses wait_for_interrupt in idle task
 // 	static UINT64 prev_elapsed_time = 0;

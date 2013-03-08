@@ -10,6 +10,7 @@
 #include "os_core.h"
 #include "target.h"
 #include "util.h"
+#include "os_stat.h"
 
 OS_PeriodicTask task1;
 OS_PeriodicTask task2;
@@ -28,7 +29,7 @@ char weekdays[7][12] = {
 						"Saturday"
 					};
 
-void task_fn1(void * ptr)
+void task_input(void * ptr)
 {
 	static int len = 0;
 	static char buffer[48];
@@ -214,6 +215,9 @@ void task_rtc(void * ptr)
 			
 			Syslog("\n");
 			
+#if OS_ENABLE_CPU_STATS==1 && ENABLE_SYNC_TIMER==1
+			Syslog32("Current SYNC Counter Value - ", sync_intr_counter);
+#endif 			
 			Syslog32("Current Counter Value - ", test_counter);
 			Syslog("\n");
 			
@@ -248,8 +252,8 @@ int main(int argc, char *argv[])
 
 	SyslogStr("Calling - ",  __func__);
 
-	OS_CreatePeriodicTask( 100000, 100000, 20000, 0, stack1, sizeof(stack1), "LED1", &task1, task_fn1, &a);
-	OS_CreatePeriodicTask( 10000, 10000, 2000, 1000, stack2, sizeof(stack2), "LED2", &task2, task_count, &b);
+	OS_CreatePeriodicTask( 100000, 100000, 20000, 0, stack1, sizeof(stack1), "LED1", &task1, task_input, &a);
+	OS_CreatePeriodicTask( 10000, 10000, 3000, 1000, stack2, sizeof(stack2), "LED2", &task2, task_count, &b);
 	OS_CreatePeriodicTask( 20000, 20000, 5000, 4000, stack3, sizeof(stack3), "LED3", &task3, task_3, &c);
 	OS_CreateAperiodicTask(1, stack4, sizeof(stack4), "Menu", &task4, task_rtc, &d);
 

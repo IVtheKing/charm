@@ -82,7 +82,7 @@ void _OS_StartSyncTimer()
 	// Below expression will be evaluated at compile time
 	rTCNTB1 = ((((UINT64)TIMER1_TICK_FREQ * (SYNC_TIMER_INTERVAL + OS_FIRST_SCHED_DELAY)) 
 				+ (1000000-1)) / 1000000);
-	
+
 	// Inform that Timer 1 Buffer has changed by updating manual update bit
 	rTCON = (rTCON & (~0xf00)) | TIMER1_UPDATE;
 	
@@ -91,8 +91,7 @@ void _OS_StartSyncTimer()
 	
 	// Now that the timer is running, subsequent interrupts should occur every SYNC_TIMER_INTERVAL
 	// Below expression will be evaluated at compile time
-	rTCNTB1 = ((((UINT64)TIMER1_TICK_FREQ * (SYNC_TIMER_INTERVAL + OS_FIRST_SCHED_DELAY)) 
-				+ (1000000-1)) / 1000000);
+	rTCNTB1 = ((((UINT64)TIMER1_TICK_FREQ * SYNC_TIMER_INTERVAL) + (1000000-1)) / 1000000);
 }
 #endif // ENABLE_SYNC_TIMER
 
@@ -116,6 +115,9 @@ void _OS_TimerInterrupt(UINT32 timer)
 	{
 		case TIMER0:
 			timer0_count_buffer = rTCNTB0;
+#if OS_ENABLE_CPU_STATS==1				
+			sched_intr_counter++;
+#endif	// OS_ENABLE_CPU_STATS
 			break;
 #if ENABLE_SYNC_TIMER==1
 		case TIMER1:
@@ -126,6 +128,11 @@ void _OS_TimerInterrupt(UINT32 timer)
 			timer0_count_buffer = MAX_TIMER_COUNT;
 			rTCON = (rTCON & (~0x0f)) | TIMER0_UPDATE;
 			rTCON = (rTCON & (~0x0f)) | (TIMER0_START | TIMER0_AUTORELOAD); 		
+			
+			// Keep track of number of SYNC interrupts
+#if OS_ENABLE_CPU_STATS==1				
+			sync_intr_counter++;
+#endif	// OS_ENABLE_CPU_STATS
 			break;
 #endif // ENABLE_SYNC_TIMER
 		default:
