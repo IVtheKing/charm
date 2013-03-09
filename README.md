@@ -1,13 +1,13 @@
 Main Features of the RTOS
 =========================
 
-From the beginning, one of the main goal was to keep the RTOS highly configurable. Most features of the OS can be enabled or disabled using compile time macros. This allows the developer to optimize the OS for smaller code size / lesser data / faster execution time / higher debug-ability or more features.
+* From the beginning, one of the main goal was to keep the RTOS highly configurable. Most features of the OS can be enabled or disabled using compile time macros. This allows the developer to optimize the OS for smaller code size / lesser data / faster execution time / higher debug-ability or more features.
 
-The RTOS supports both periodic & aperiodic threads. This provides a great flexibility to write applications that make use of both periodic and priority based tasks.
+* The RTOS supports both periodic & aperiodic threads. This provides a great flexibility to write applications that make use of both periodic and priority based tasks.
 
-Periodic threads are scheduled using Earliest Deadline First (EDF) algorithm. The EDF algorithm is superior to Rate Monotonic Algorithm as it guarantees the schedulability under higher CPU utilization.
+* Periodic threads are scheduled using Earliest Deadline First (EDF) algorithm. The EDF algorithm is superior to Rate Monotonic Algorithm as it guarantees the schedulability under higher CPU utilization.
 
-Has built in support to accumulate run-time statistics about various Operating System parameters, CPU utilization etc.
+* Has built in support to accumulate run-time statistics about various Operating System parameters, CPU utilization etc.
 
 Keeps track of per task statistics such as accumulated run time, deadline miss count, Budget exceeded count etc.
 
