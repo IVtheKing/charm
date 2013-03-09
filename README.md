@@ -9,14 +9,14 @@ Main Features of the RTOS
 
 * Has built in support to accumulate run-time statistics about various Operating System parameters, CPU utilization etc.
 
-Keeps track of per task statistics such as accumulated run time, deadline miss count, Budget exceeded count etc.
+* Keeps track of per task statistics such as accumulated run time, deadline miss count, Budget exceeded count etc.
 
-The RTOS makes use of a single hardware timer to control all EDF parameters (Period / Deadline / Budget / Phase). There is no single fixed timer interrupts in this RTOS. At each timer event, the RTOS computes when the next interrupt needs to be generated based on the current set of ready and waiting tasks.
+* The RTOS makes use of a single hardware timer to control all EDF parameters (Period / Deadline / Budget / Phase). There is no single fixed timer interrupts in this RTOS. At each timer event, the RTOS computes when the next interrupt needs to be generated based on the current set of ready and waiting tasks.
 
-It configures the timer tick at a very high resolution (1.8963 uSec) to get good granularity. It smartly works around the resulting issue of smaller maximum interval while using 16 bit timers.
+* It configures the timer tick at a very high resolution (1.8963 uSec) to get good granularity. It smartly works around the resulting issue of smaller maximum interval while using 16 bit timers.
 
-Because the RTOS programs the main OS timer each time, the is a possibility of very slow drift. In order to eliminate this drift completely, it optionally makes use of a second fixed interval timer which triggers every 1 second. At each 1 second interval, the main OS clock re-synchronizes itself to make the drift zero.
+* Because the RTOS programs the main OS timer each time, the is a possibility of very slow drift. In order to eliminate this drift completely, it optionally makes use of a second fixed interval timer which triggers every 1 second. At each 1 second interval, the main OS clock re-synchronizes itself to make the drift zero.
 
-The OS context switch event interrupts are measured to take < 20 micro seconds. The actual time taken by the OS timer interrupt depends on the number of ready tasks at a given time.
+* The OS context switch event interrupts are measured to take < 20 micro seconds. The actual time taken by the OS timer interrupt depends on the number of ready tasks at a given time.
 
-The RTOS supports zero context store for periodic tasks which means for those periodic tasks which complete before its deadline / budget expiry it stores minimal context information. This is possible because each periodic task does not need to retain its registers between two periods.
+* The RTOS supports zero context store for periodic tasks which means for those periodic tasks which complete before its deadline / budget expiry it stores minimal context information. This is possible because each periodic task does not need to retain its registers between two periods.
