@@ -244,7 +244,6 @@ OS_Error OS_CreateAperiodicTask(UINT16 priority,
 	return SUCCESS;
 }
 
-
 ///////////////////////////////////////////////////////////////////////////////
 // Validation for sufficient CPU Budget
 // ASSUMPTION: The interrupts are disabled when this function is invoked

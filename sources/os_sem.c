@@ -36,7 +36,6 @@ OS_Error OS_SemWait(OS_Sem *sem)
 	if(!sem)
 		return ARGUMENT_ERROR;
 
-	
 	while(1)
 	{
 		//disable interrupts

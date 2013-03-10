@@ -25,7 +25,6 @@ UINT32 sync_timer_miss_counter;
 UINT32 sync_intr_counter;
 #endif
 
-
 // Variables to keep track of the idle task execution
 volatile UINT32 g_idle_max_count;
 volatile UINT32 g_idle_count;
@@ -69,11 +68,12 @@ void _OS_StatisticsFn(void * ptr)
 	{
 		Syslog32("STAT: scheduler_miss_counter = ", scheduler_miss_counter);
 	}
+#if ENABLE_SYNC_TIMER==1	
 	if(sync_timer_miss_counter)
 	{
 		Syslog32("STAT: sync_timer_miss_counter = ", sync_timer_miss_counter);
 	}
-	
+#endif
 	
 	// TODO: This logic is now outdated as the OS uses wait_for_interrupt in idle task
 // 	static UINT64 prev_elapsed_time = 0;

@@ -93,10 +93,14 @@ void OS_Start()
 		// Add the idle task to the Aperiodic task queue
 		_OS_QueueInsert(&g_ap_ready_q, &g_TCB_idle_task, MIN_PRIORITY + 1);		
 
-#if OS_ENABLE_CPU_STATS == 1
+#if OS_ENABLE_CPU_STATS==1
 		OS_CreatePeriodicTask(STAT_TASK_PERIOD, STAT_TASK_PERIOD, 
 			STAT_TASK_PERIOD / 50, 0, g_stat_task_stack, 
-			sizeof(g_stat_task_stack), "STATISTICS", &g_stat_task, 
+			sizeof(g_stat_task_stack), 
+#if OS_WITH_TASK_NAME==1
+			"STATISTICS", 
+#endif
+			&g_stat_task, 
 			_OS_StatisticsFn, 0);
 #else
 		_OS_QueuePeek(&g_wait_q, NULL, &g_next_wakeup_time);
