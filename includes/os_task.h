@@ -11,6 +11,7 @@
 #define _OS_TASK_H
 
 #include "os_types.h"
+#include "os_process.h"
 
 ///////////////////////////////////////////////////////////////////////////////
 // Constants
@@ -60,6 +61,7 @@ struct OS_PeriodicTask
 	// Folliwing attributes are common in both type of tasks. They should be in the same order.
 	UINT16 attributes;
 	UINT16 id;
+	OS_Process *owner_process;
 #if OS_WITH_TASK_NAME==1
 	INT8 name[OS_TASK_NAME_SIZE];
 #endif
@@ -76,7 +78,7 @@ struct OS_PeriodicTask
 	UINT32 *stack;
 	UINT32 stack_size;
 	void (*task_function)(void *pdata);
-	void *pdata;
+	void *pdata;	
 	
 	// Following members are used by the scheduling algorithm
 	UINT32 remaining_budget;
@@ -104,6 +106,7 @@ struct OS_AperiodicTask
 
 	UINT16 attributes;
 	UINT16 id;
+	OS_Process *owner_process;
 #if OS_WITH_TASK_NAME==1
 	INT8 name[OS_TASK_NAME_SIZE];
 #endif

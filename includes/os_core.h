@@ -42,6 +42,7 @@ typedef enum
 
 } OS_Error;
 
+#include "os_process.h"
 #include "os_task.h"
 #include "os_sem.h"
 #include "os_mutex.h"
@@ -70,8 +71,24 @@ extern BOOL _OS_IsRunning;
 extern volatile void * g_current_task;
 
 ///////////////////////////////////////////////////////////////////////////////
+// Process creation APIs
+///////////////////////////////////////////////////////////////////////////////
+
+// API for creating a process. 
+// Input:
+//		process_name: pointer to the process name
+//		process_entry_function: This is the pointer to the process entry function.
+//			The process_entry_function should initialize all process wide data structures
+//			and create all tasks
+OS_Error OS_CreateProcess(
+		OS_Process *process,
+		const INT8 * process_name,
+		void (*process_entry_function)(void *pdata),
+		void *pdata
+	);
+
+///////////////////////////////////////////////////////////////////////////////
 // Task creation APIs
-// Note: All in_us have only 250uSec resolution
 ///////////////////////////////////////////////////////////////////////////////
 OS_Error OS_CreatePeriodicTask(
 	UINT32 period_in_us,
@@ -97,7 +114,6 @@ OS_Error OS_CreateAperiodicTask(
 	OS_AperiodicTask *task,
 	void (*task_entry_function)(void *pdata),
 	void *pdata);
-
 
 ///////////////////////////////////////////////////////////////////////////////
 // The following funcstion Initializes the OS data structures

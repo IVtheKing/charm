@@ -25,16 +25,22 @@
 
 // (65535 * 1000000) / TIMER0_TICK_FREQ = 124273.78 uSec. Lets use 100ms for this.
 // This way there will be at least one interrupt every 100ms
-#define	MAX_TIMER0_INTERVAL_uS	100000		
+#define	MAX_TIMER0_INTERVAL_uS		100000		
 
 // (65535 * 1000000) / TIMER0_TICK_FREQ = 124273.78 uSec. Lets use 120ms for this.
 // Note that this value should be > MAX_TIMER0_INTERVAL_uS in order to prevent race between
 // timer0 & timer1 interrupts. 
-#define	MAX_TIMER1_INTERVAL_uS	120000		
+#define	MAX_TIMER1_INTERVAL_uS		120000		
 
 // Instruction and Data Cache related
 #define ENABLE_INSTRUCTION_CACHE	1
 #define ENABLE_DATA_CACHE			1
+
+// Process related
+#define OS_PROCESS_NAME_SIZE		16
+
+// MMU Related
+#define ENABLE_MMU					1
 
 // Drivers to include
 #define ENABLE_RTC					1
@@ -53,7 +59,7 @@
 #define MIN_PRIORITY				255
 #define OS_IDLE_TASK_STACK_SIZE		0x40		// In Words
 #define OS_STAT_TASK_STACK_SIZE		0x40		// In Words
-#define STAT_TASK_PERIOD	5000000	// 5 sec
+#define STAT_TASK_PERIOD			5000000	// 5 sec
 #define OS_WITH_TASK_NAME			1
 #define OS_TASK_NAME_SIZE			16
 

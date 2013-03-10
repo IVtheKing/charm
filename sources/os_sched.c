@@ -73,6 +73,15 @@ void OS_Start()
 
 		// Reset the current task
 		g_current_task = 0;
+		
+		// Now go through the list of all processes and call their entry functions
+		g_current_process = g_process_list_head;
+		while(g_current_process)
+		{
+			// process_entry_function would create tasks
+			g_current_process->process_entry_function(g_current_process->pdata);
+			g_current_process = g_current_process->next;
+		}
 				
 		// Initialize the IDLE task TCB. This is done here so that the 
 		g_TCB_idle_task.id = 0;

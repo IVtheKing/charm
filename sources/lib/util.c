@@ -13,27 +13,38 @@
 
 INT8 *strncpy(INT8 *dest, const INT8 *src, UINT32 n)
 {
-	INT32 i;
+	INT32 i = 0;
 	
-	if(!dest || !src) return NULL;
+	if(!dest || !n) return NULL;	
 
-   	for (i = 0; i < n && src[i] != '\0'; i++)
-        dest[i] = src[i];
-	for ( ; i < n; i++)
+	if(src)
+	{
+		for (; i < n && src[i] != '\0'; i++)
+		{
+			dest[i] = src[i];
+		}
+	}
+	for (; i < n; i++)
+	{
 	    dest[i] = '\0';
-
+	}
 	return dest;
 }
 
 INT8 *strcpy(INT8 *dest, const INT8 *src)
 {
-	INT32 i;
+	INT32 i = 0;
 	
-	if(!dest || !src) return NULL;
+	if(!dest) return NULL;	
 	
-   	for (i = 0; src[i] != '\0'; i++)
-        dest[i] = src[i];
-
+	if(src)
+	{
+		for (; src[i] != '\0'; i++)
+		{
+			dest[i] = src[i];
+		}	
+	}
+	
 	dest[i] = '\0';
 
 	return dest;
