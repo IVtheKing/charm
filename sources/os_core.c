@@ -28,7 +28,7 @@ void * OS_GetCurrentTask()
 UINT32 OS_GetTBECount()
 {
 	OS_PeriodicTask * task = (OS_PeriodicTask *)g_current_task;
-	return (task->type == PERIODIC_TASK) ? task->TBE_count : 0;
+	return IS_PERIODIC_TASK(task) ? task->TBE_count : 0;
 }
 
 void panic(const INT8 * format, ...)

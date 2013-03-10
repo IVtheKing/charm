@@ -49,7 +49,6 @@ void _OS_SetAlarm(OS_PeriodicTask *task,
 					BOOL is_new_job,
 					BOOL update_timer);
 static void _OS_SetNextTimeout(void);
-static void _OS_SetTaskBudget (OS_PeriodicTask *task);
 void _OS_ReSchedule(void);
 
 // TODO: Make all unnecessary functions as static
@@ -79,8 +78,7 @@ void OS_Start()
 		g_TCB_idle_task.id = 0;
 		g_TCB_idle_task.priority = MIN_PRIORITY + 1;
 		g_TCB_idle_task.top_of_stack = 0;
-		g_TCB_idle_task.type = APERIODIC_TASK;
-		g_TCB_idle_task.mode = SYSTEM_TASK;
+		g_TCB_idle_task.attributes = (APERIODIC_TASK | SYSTEM_TASK);
 #if OS_WITH_VALIDATE_TASK==1
 		g_TCB_idle_task.signature = TASK_SIGNATURE;
 #endif
@@ -195,7 +193,7 @@ void _OS_Timer0ISRHandler(void *arg)
 	
 	// The argument in this case is the g_current_task before the interrupt
 	task = (OS_PeriodicTask *)arg;
-	if(task->type == PERIODIC_TASK)
+	if(IS_PERIODIC_TASK(task))
 	{
 		// Adjust the remaining & accumulated budgets
 		task->accumulated_budget += g_current_timeout;
@@ -377,7 +375,7 @@ void _OS_SetNextTimeout(void)
 		g_current_timeout = (UINT32)(timeout_in_us - g_global_time);
 		UINT32 budget_spent = _OS_UpdateTimer(&g_current_timeout);	// Note that _OS_UpdateTimer may choose a shorter timeout
 		OS_PeriodicTask * cur_task = (OS_PeriodicTask *)g_current_task;
-		if(cur_task->type == PERIODIC_TASK) 
+		if(IS_PERIODIC_TASK(cur_task))
 		{
 			if((task != cur_task) && (budget_spent > 0))
 			{

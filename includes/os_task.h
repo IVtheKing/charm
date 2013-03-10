@@ -23,15 +23,22 @@
 #endif
 
 ///////////////////////////////////////////////////////////////////////////////
-// Type of Task
+// Helper Macros for Task Types, Modes and associated functions
 ///////////////////////////////////////////////////////////////////////////////
-
-enum {
-	PERIODIC_TASK = 0,
-	APERIODIC_TASK = 1,
-	SYSTEM_TASK = 0,
-	USER_TASK = 2
+enum 
+{
+	APERIODIC_TASK 	= 0,
+	PERIODIC_TASK 	= 1,
+	
+	SYSTEM_TASK		= 2,
+	USER_TASK		= 0
 };
+
+#define IS_PERIODIC_TASK(task)	((task)->attributes & PERIODIC_TASK)
+#define IS_APERIODIC_TASK(task)	(!IS_PERIODIC_TASK(task))
+
+#define IS_SYSTEM_TASK(task)	((task)->attributes & SYSTEM_TASK)
+#define IS_USER_TASK(task)	(!IS_SYSTEM_TASK(task))
 
 ///////////////////////////////////////////////////////////////////////////////
 // Task TCB 
@@ -51,12 +58,11 @@ struct OS_PeriodicTask
 	UINT32 *top_of_stack;	// Do NOT REORDER THIS MEMBER, THE OFFSET 'SP_OFFSET_IN_TCB' IS USED IN ASSEMBLY
 
 	// Folliwing attributes are common in both type of tasks. They should be in the same order.
+	UINT16 attributes;
+	UINT16 id;
 #if OS_WITH_TASK_NAME==1
 	INT8 name[OS_TASK_NAME_SIZE];
 #endif
-	UINT8 type;	
-	UINT8 mode;
-	UINT16 id;
 #if OS_WITH_VALIDATE_TASK==1
 	UINT32 signature;		// A unique identifier to validate the task structure
 #endif	// OS_WITH_VALIDATE_TASK
@@ -96,12 +102,11 @@ struct OS_AperiodicTask
 	// Folliwing attributes are common in both type of tasks. They should be in the same order
 	UINT32 *top_of_stack;	// Do NOT REORDER THIS MEMBER, THE OFFSET 'SP_OFFSET_IN_TCB' IS USED IN Assembly
 
+	UINT16 attributes;
+	UINT16 id;
 #if OS_WITH_TASK_NAME==1
 	INT8 name[OS_TASK_NAME_SIZE];
 #endif
-	UINT8 type;	
-	UINT8 mode;
-	UINT16 id;
 #if OS_WITH_VALIDATE_TASK==1
 	UINT32 signature;		// A unique identifier to validate the task structure
 #endif	// OS_WITH_VALIDATE_TASK

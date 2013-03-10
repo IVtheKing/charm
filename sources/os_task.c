@@ -110,8 +110,7 @@ OS_Error OS_CreatePeriodicTask(
 	// Conver the stack_size_in_bytes into number of words
 	stack_size = stack_size_in_bytes >> 2; 
 
-	task->type = PERIODIC_TASK;
-	task->mode = USER_TASK;
+	task->attributes = (PERIODIC_TASK | USER_TASK);
 #if OS_WITH_VALIDATE_TASK==1
 	task->signature = TASK_SIGNATURE;
 #endif
@@ -224,8 +223,7 @@ OS_Error OS_CreateAperiodicTask(UINT16 priority,
 	task->task_function = task_entry_function;
 	task->pdata = pdata;
 	task->priority = priority;
-	task->type = APERIODIC_TASK;
-	task->mode = USER_TASK;
+	task->attributes = (APERIODIC_TASK | USER_TASK);
 #if OS_WITH_VALIDATE_TASK==1
 	task->signature = TASK_SIGNATURE;
 #endif
@@ -347,7 +345,7 @@ UINT64 OS_GetThreadElapsedTime()
 		
 	if(task) 
 	{
-		if(task->type == PERIODIC_TASK)
+		if(IS_PERIODIC_TASK(task))
 		{	
 	       OS_ENTER_CRITICAL(intsts); // Enter the critical section		
 		   thread_elapsed_time = task->accumulated_budget + _OS_GetTimerValue_us(1);
