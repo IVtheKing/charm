@@ -34,8 +34,8 @@ extern _OS_Queue g_ready_q;
 extern _OS_Queue g_wait_q;
 extern _OS_Queue g_ap_ready_q;
 extern _OS_Queue g_block_q;
-extern UINT64 g_global_time;	// This variable gets updated everytime the Timer ISR is called.
-extern UINT64 g_next_wakeup_time; // This variable holds the next scheduled wakeup time in uSecs
+extern volatile UINT64 g_global_time;	// This variable gets updated everytime the Timer ISR is called.
+extern volatile UINT64 g_next_wakeup_time; // This variable holds the next scheduled wakeup time in uSecs
 extern void _OS_ReSchedule();
 extern void _OS_SetAlarm(OS_PeriodicTask *task, UINT64 abs_time_in_us, BOOL is_new_job, BOOL update_timer);
 
@@ -296,6 +296,8 @@ static void TaskEntryMain(void *pdata)
 			// it is set again below
 			g_next_wakeup_time = 0xFFFFFFFFFFFFFFFF;
 		}
+		
+		// The accumulated_budget and remaining_budget will be updated by these calls
 		if(task->deadline == task->period)
 		{
 			_OS_SetAlarm(task, task->alarm_time, FALSE, TRUE);
@@ -306,7 +308,8 @@ static void TaskEntryMain(void *pdata)
 		}
 		OS_EXIT_CRITICAL(intsts);
 
-		_OS_ReSchedule();	// Now call reschedule function
+		// Now call reschedule function
+		_OS_ReSchedule();	
 	}
 }
 
@@ -327,30 +330,33 @@ static void AperiodicTaskEntry(void *pdata)
 	_OS_QueueInsert(&g_block_q, task, task->priority);
 	OS_EXIT_CRITICAL(intsts);
 
-	_OS_ReSchedule();	// Now call reschedule function
+	// Now call reschedule function
+	_OS_ReSchedule();
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // The following function gets the total time taken by the current
 // thread since the thread has begun. Note that this is not the global 
 // time, this is just the time taken from only the current thread.
+// Note that this function is defined only for periodic tasks
 ///////////////////////////////////////////////////////////////////////////////
 UINT64 OS_GetThreadElapsedTime()
 {
     UINT64 thread_elapsed_time = 0;
-	UINT32 intsts;
+	UINT64 old_global_time;
 
 	// First get the current task which is running...
 	OS_PeriodicTask * task = (OS_PeriodicTask *)OS_GetCurrentTask();
 		
-	if(task) 
+	if(task && IS_PERIODIC_TASK(task)) 
 	{
-		if(IS_PERIODIC_TASK(task))
-		{	
-	       OS_ENTER_CRITICAL(intsts); // Enter the critical section		
-		   thread_elapsed_time = task->accumulated_budget + _OS_GetTimerValue_us(1);
-		   OS_EXIT_CRITICAL(intsts); // Exit the critical section		
-		}	
+		do
+		{
+			old_global_time = g_global_time;
+			thread_elapsed_time = task->accumulated_budget + _OS_GetTimerValue_us();
+		} 
+		while(old_global_time != g_global_time); // To ensure that the timer has not expired since we have read both g_global_time and OSW_GetTime		
 	}
+		
 	return thread_elapsed_time;
 }

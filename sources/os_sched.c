@@ -22,8 +22,8 @@ _OS_Queue g_block_q;
 // This global variable can be accessed from outside
 BOOL _OS_IsRunning = FALSE;
 
-UINT64 g_global_time;		// This variable gets updated everytime the Timer ISR is called.
-UINT64 g_next_wakeup_time; 	// This variable holds the next scheduled wakeup time in uSecs
+volatile UINT64 g_global_time;		// This variable gets updated everytime the Timer ISR is called.
+volatile UINT64 g_next_wakeup_time; 	// This variable holds the next scheduled wakeup time in uSecs
 #if ENABLE_SYNC_TIMER==1
 UINT64 g_next_sync_time;	// This is the next scheduled time when the SYNC should happen	
 BOOL g_sync_expected;
@@ -344,6 +344,8 @@ void _OS_SetNextTimeout(void)
 		timeout_in_us = budget_timeout;
 	}
 	
+	UINT32 budget_spent = 0;
+	
 	// If the requested timeout is crossing g_next_sync_time, then we need to adjust the
 	// requested timeout in order to guarantee that we schedule an interrupt at the SYNC time
 #if ENABLE_SYNC_TIMER==1	
@@ -357,7 +359,7 @@ void _OS_SetNextTimeout(void)
 			g_next_wakeup_time = g_next_sync_time;
 			
 			// Disable OS timer. Wait for SYNC timer interrupt.
-			_OS_UpdateTimer(NULL);
+			budget_spent = _OS_UpdateTimer(NULL);
 			
 			// Note that we are expecting a SYNC interrupt. When we actually get the SYNC interrupt,
 			// if this variable is not set, then it indicates a scheduling problem.
@@ -373,11 +375,20 @@ void _OS_SetNextTimeout(void)
 		(timeout_in_us < g_next_wakeup_time))	
 	{
 		g_current_timeout = (UINT32)(timeout_in_us - g_global_time);
-		UINT32 budget_spent = _OS_UpdateTimer(&g_current_timeout);	// Note that _OS_UpdateTimer may choose a shorter timeout
+		budget_spent = _OS_UpdateTimer(&g_current_timeout);	// Note that _OS_UpdateTimer may choose a shorter timeout
+		g_next_wakeup_time = g_global_time + g_current_timeout;
+#if ENABLE_SYNC_TIMER==1			
+		g_sync_expected = FALSE;
+#endif // ENABLE_SYNC_TIMER
+	}
+	
+	// Check if we need to adjust the budget spent for the old task
+	if(budget_spent > 0)
+	{
 		OS_PeriodicTask * cur_task = (OS_PeriodicTask *)g_current_task;
 		if(IS_PERIODIC_TASK(cur_task))
 		{
-			if((task != cur_task) && (budget_spent > 0))
+			if(task != cur_task)
 			{
 				cur_task->accumulated_budget += budget_spent;
 				cur_task->remaining_budget -= budget_spent;
@@ -387,10 +398,6 @@ void _OS_SetNextTimeout(void)
 				panic("task == cur_task: Unexpected condition");
 			}
 		}
-		g_next_wakeup_time = g_global_time + g_current_timeout;
-#if ENABLE_SYNC_TIMER==1			
-		g_sync_expected = FALSE;
-#endif // ENABLE_SYNC_TIMER
 	}
 }
 
@@ -445,7 +452,7 @@ UINT64 OS_GetElapsedTime()
 	do
 	{
 		old_global_time = g_global_time;
-		elapsed_time = g_global_time + _OS_GetTimerValue_us(1);
+		elapsed_time = g_global_time + _OS_GetTimerValue_us();
 	} 
 	while(old_global_time != g_global_time); // To ensure that the timer has not expired since we have read both g_global_time and OSW_GetTime
 

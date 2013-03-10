@@ -46,8 +46,6 @@ UINT32 _OS_UpdateTimer(UINT32 * delay_in_us);
 void _OS_TimerInterrupt(UINT32 timer);
 
 // Read the timer value in uSec
-// Input:
-//		timer: 0/1
-UINT32 _OS_GetTimerValue_us(UINT32 timer);
+UINT32 _OS_GetTimerValue_us(void);
 
 #endif // _OS_TIMER_H_

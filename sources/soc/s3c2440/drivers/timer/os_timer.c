@@ -171,7 +171,7 @@ UINT32 _OS_UpdateTimer(UINT32 * delay_in_us)
 	else
 	{
 		req_count = 0;
-		Klog32(KLOG_OS_TIMER_SET, "OS Timer Set (disabled) - ", 0);
+		Klog32(KLOG_OS_TIMER_SET, "OS Timer Set (disabling) - ", 0);
 	}
 	
 	// Clear the interrupt flag in the SRCPND and INTPND registers
@@ -183,13 +183,14 @@ UINT32 _OS_UpdateTimer(UINT32 * delay_in_us)
 	//		In this case, timer0_count_buffer = MAX_TIMER_COUNT
 	// 2. The OS timer has expired and but the ISR has not finished yet
 	//		In this case, timer0_count_buffer < MAX_TIMER_COUNT but rTCNTO0 is > timer0_count_buffer
-	// 3. Budget timer is still running	(not expired)
+	// 3. The timer is still running	(not expired)
 	// 4. The budget timer may have been disabled in the last period. 
 	if(timer0_count_buffer == MAX_TIMER_COUNT)
 	{
 		// Case 1
-		elapsed_count = (MAX_TIMER_COUNT - rTCNTO0);	// Take this time from the new task
-		budget_spent_us = 0;							// Extra time is accounted for in the new task
+		// Take this time from the new task, extra time is accounted for in the new task
+		elapsed_count = (MAX_TIMER_COUNT - rTCNTO0);	
+		budget_spent_us = 0;							
 	}
 	else if(timer0_count_buffer > 0)
 	{
@@ -197,14 +198,16 @@ UINT32 _OS_UpdateTimer(UINT32 * delay_in_us)
 		if(tcount > timer0_count_buffer)
 		{
 			// Case 2
-			elapsed_count = (MAX_TIMER_COUNT - tcount);		// Take this time from the new task
-			budget_spent_us = 0;							// Extra time is accounted for in the new task
+			// Take this time from the new task, extra time is accounted for in the new task
+			elapsed_count = (MAX_TIMER_COUNT - tcount);		
+			budget_spent_us = 0;
 		}
 		else
 		{
 			// Case 3. We must have requested shorter timeout.
-			elapsed_count = 0;								// Extra time is accounted for in the old task
-			tcount = (timer0_count_buffer - tcount);		// The time spent till now should be accounted for in the old task
+			// Extra time is accounted for in the old task. The time spent till now should be accounted for in the old task.
+			elapsed_count = 0;								
+			tcount = (timer0_count_buffer - tcount);
 			budget_spent_us = CONVERT_TICKS_TO_us(tcount);	// Convert it to us right away.
 		}
 	}
@@ -269,7 +272,7 @@ UINT32 _OS_UpdateTimer(UINT32 * delay_in_us)
 ///////////////////////////////////////////////////////////////////////////////
 // Converts the current timer count into micro seconds and returns.
 ///////////////////////////////////////////////////////////////////////////////
-UINT32 _OS_GetTimerValue_us(UINT32 timer)
+UINT32 _OS_GetTimerValue_us()
 {
-	return CONVERT_TICKS_TO_us(timer ? rTCNTO1 : rTCNTO0);
+	return CONVERT_TICKS_TO_us(timer0_count_buffer - rTCNTO0);
 }

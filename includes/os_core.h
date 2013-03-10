@@ -126,6 +126,8 @@ UINT64 OS_GetElapsedTime();
 // The following function gets the total time taken by the current
 // thread since the thread has begun. Note that this is not the global 
 // time, this is just the time taken from only the current thread.
+// Note that this function is defined only for periodic tasks.
+// For aperiodic tasks, this function will return zero.
 ///////////////////////////////////////////////////////////////////////////////
 UINT64 OS_GetThreadElapsedTime();
 
