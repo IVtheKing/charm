@@ -25,14 +25,16 @@ BOOL _OS_IsRunning = FALSE;
 volatile UINT64 g_global_time;		// This variable gets updated everytime the Timer ISR is called.
 volatile UINT64 g_next_wakeup_time; 	// This variable holds the next scheduled wakeup time in uSecs
 #if ENABLE_SYNC_TIMER==1
-UINT64 g_next_sync_time;	// This is the next scheduled time when the SYNC should happen	
-BOOL g_sync_expected;
+static UINT64 g_next_sync_time;	// This is the next scheduled time when the SYNC should happen	
+static BOOL g_sync_expected;
 #endif
 volatile void * g_current_task;
-UINT32	g_current_timeout;	// The time for which the timer is currently setup
+static UINT32	g_current_timeout;	// The time for which the timer is currently setup
 
-OS_AperiodicTask g_TCB_idle_task;	// A TCB for the idle task
-UINT32 g_idle_task_stack [OS_IDLE_TASK_STACK_SIZE];
+static OS_AperiodicTask g_idle_task;	// A TCB for the idle task
+static UINT32 g_idle_task_stack [OS_IDLE_TASK_STACK_SIZE];
+
+OS_Process	g_kernel_process;	// Kernel process
 
 // External functions used in here
 extern void _OS_InitInterrupts();
@@ -51,8 +53,8 @@ void _OS_SetAlarm(OS_PeriodicTask *task,
 static void _OS_SetNextTimeout(void);
 void _OS_ReSchedule(void);
 
-// TODO: Make all unnecessary functions as static
 // Static methods
+static void kernel_process_entry(void * pdata);
 static void _OS_idle_task(void * ptr);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -74,6 +76,9 @@ void OS_Start()
 		// Reset the current task
 		g_current_task = 0;
 		
+		// Initialize the Kernel process
+		OS_CreateProcess(&g_kernel_process, "kernel", &kernel_process_entry, NULL);
+				
 		// Now go through the list of all processes and call their entry functions
 		g_current_process = g_process_list_head;
 		while(g_current_process)
@@ -82,39 +87,7 @@ void OS_Start()
 			g_current_process->process_entry_function(g_current_process->pdata);
 			g_current_process = g_current_process->next;
 		}
-				
-		// Initialize the IDLE task TCB. This is done here so that the 
-		g_TCB_idle_task.id = 0;
-		g_TCB_idle_task.priority = MIN_PRIORITY + 1;
-		g_TCB_idle_task.top_of_stack = 0;
-		g_TCB_idle_task.attributes = (APERIODIC_TASK | SYSTEM_TASK);
-#if OS_WITH_VALIDATE_TASK==1
-		g_TCB_idle_task.signature = TASK_SIGNATURE;
-#endif
-#if OS_WITH_TASK_NAME==1
-		strcpy(g_TCB_idle_task.name, "IDLE");
-#endif // OS_WITH_TASK_NAME	
-
-		g_TCB_idle_task.top_of_stack = g_idle_task_stack + OS_IDLE_TASK_STACK_SIZE;
-		g_TCB_idle_task.top_of_stack = _OS_BuildTaskStack(g_TCB_idle_task.top_of_stack, 
-				_OS_idle_task, &g_TCB_idle_task, FALSE);
 		
-		// Add the idle task to the Aperiodic task queue
-		_OS_QueueInsert(&g_ap_ready_q, &g_TCB_idle_task, MIN_PRIORITY + 1);		
-
-#if OS_ENABLE_CPU_STATS==1
-		OS_CreatePeriodicTask(STAT_TASK_PERIOD, STAT_TASK_PERIOD, 
-			STAT_TASK_PERIOD / 50, 0, g_stat_task_stack, 
-			sizeof(g_stat_task_stack), 
-#if OS_WITH_TASK_NAME==1
-			"STATISTICS", 
-#endif
-			&g_stat_task, 
-			_OS_StatisticsFn, 0);
-#else
-		_OS_QueuePeek(&g_wait_q, NULL, &g_next_wakeup_time);
-#endif
-
 		// Start scheduling by creating the first interrupt
 		UINT32 delay_start = OS_FIRST_SCHED_DELAY;
 		_OS_UpdateTimer(&delay_start);	// First timer after 10ms
@@ -140,6 +113,41 @@ void OS_Start()
 		// The current stack continues as SVC stack handling all interrupts
 		panic("Unexpected System stack unwind");
 	}
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// Kernel Process Entry function
+///////////////////////////////////////////////////////////////////////////////
+static void kernel_process_entry(void * pdata)
+{
+		// Create all kernel tasks. Currently there are:
+		// 		- Idle task
+		//		- Statistics task
+		
+		// Create the IDLE task 
+		_OS_CreateAperiodicTask(MIN_PRIORITY + 1,
+			g_idle_task_stack, 
+			OS_IDLE_TASK_STACK_SIZE << 2,	// In Bytes
+#if OS_WITH_TASK_NAME==1
+			"idle",
+#endif //OS_WITH_TASK_NAME
+			SYSTEM_TASK,
+			&g_idle_task,
+			_OS_idle_task,
+			NULL);
+		
+		// Create the statistics task
+#if OS_ENABLE_CPU_STATS==1
+		_OS_CreatePeriodicTask(STAT_TASK_PERIOD, STAT_TASK_PERIOD, 
+			STAT_TASK_PERIOD / 50, 0, g_stat_task_stack, 
+			sizeof(g_stat_task_stack), 
+#if OS_WITH_TASK_NAME==1
+			"STATISTICS", 
+#endif
+			SYSTEM_TASK,
+			&g_stat_task, 
+			_OS_StatisticsFn, 0);
+#endif
 }
 
 ///////////////////////////////////////////////////////////////////////////////

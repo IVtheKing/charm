@@ -61,6 +61,48 @@ OS_Error OS_CreatePeriodicTask(
 	void (*periodic_entry_function)(void *pdata),
 	void *pdata)
 {
+
+	if(stack_size_in_bytes < ONE_KB / 4)	// Validate for minimum stack size 256 bytes
+	{
+		FAULT("Stack size should be at least %d bytes", ONE_KB / 4);
+		return INSUFFICIENT_STACK;
+	}
+	
+	return _OS_CreatePeriodicTask(
+			period_in_us,
+			deadline_in_us,
+			budget_in_us,
+			phase_shift_in_us,
+			stack,
+			stack_size_in_bytes,
+#if OS_WITH_TASK_NAME==1
+			task_name,
+#endif // OS_WITH_TASK_NAME
+			USER_TASK,
+			task,
+			periodic_entry_function,
+			pdata);
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// OS_CreatePeriodicTask - API to create periodic tasks
+//		OS Internal function with more arguments
+///////////////////////////////////////////////////////////////////////////////
+OS_Error _OS_CreatePeriodicTask(
+	UINT32 period_in_us,
+	UINT32 deadline_in_us,
+	UINT32 budget_in_us,
+	UINT32 phase_shift_in_us,
+	UINT32 *stack,
+	UINT32 stack_size_in_bytes,
+#if OS_WITH_TASK_NAME==1
+	const INT8 * task_name,
+#endif // OS_WITH_TASK_NAME			
+	UINT16 options,
+	OS_PeriodicTask *task,
+	void (*periodic_entry_function)(void *pdata),
+	void *pdata)
+{
 	FP32 this_thread_cpu;
 	UINT32 stack_size;
 	UINT32 intsts;
@@ -75,12 +117,6 @@ OS_Error OS_CreatePeriodicTask(
 	{
 	    FAULT("One or more invalid %s arguments", "task");
 		return INVALID_ARG;
-	}
-
-	if(stack_size_in_bytes < ONE_KB / 4)	// Validate for minimum stack size 256 bytes
-	{
-		FAULT("Stack size should be at least %d bytes", ONE_KB / 4);
-		return INSUFFICIENT_STACK;
 	}
 
 	if(period_in_us < TASK_MIN_PERIOD)
@@ -110,7 +146,7 @@ OS_Error OS_CreatePeriodicTask(
 	// Conver the stack_size_in_bytes into number of words
 	stack_size = stack_size_in_bytes >> 2; 
 
-	task->attributes = (PERIODIC_TASK | USER_TASK);
+	task->attributes = (PERIODIC_TASK | options);
 #if OS_WITH_VALIDATE_TASK==1
 	task->signature = TASK_SIGNATURE;
 #endif
@@ -135,6 +171,9 @@ OS_Error OS_CreatePeriodicTask(
 	task->dline_miss_count = 0;
 	//task->next_release_time = phase_shift_in_us;
 	task->alarm_time = 0;
+	
+	// Note down the owner process
+	task->owner_process = g_current_process;
 
 	OS_ENTER_CRITICAL(intsts);
 	//if(!ValidateNewThread(period_in_us, budget_in_us))
@@ -174,13 +213,52 @@ OS_Error OS_CreatePeriodicTask(
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-// The task creation routine for Aperiodic tasks
+// OS_CreateAperiodicTask
+// 		OS API for creating Aperiodic task
 ///////////////////////////////////////////////////////////////////////////////
 OS_Error OS_CreateAperiodicTask(UINT16 priority, 
 	UINT32 * stack, UINT32 stack_size_in_bytes,
 #if OS_WITH_TASK_NAME==1
 	const INT8 * task_name,
-#endif //OS_WITH_TASK_NAME			
+#endif //OS_WITH_TASK_NAME
+	OS_AperiodicTask * task,
+	void(* task_entry_function)(void * pdata),
+	void * pdata)
+{
+	if(priority > MIN_PRIORITY)
+	{
+		FAULT("The priority value %d should be within 0 and %d", priority, MIN_PRIORITY);
+		return INVALID_PRIORITY;
+	}
+
+	if(stack_size_in_bytes < ONE_KB / 4) // Validate for minimum stack size 256 bytes
+	{
+		FAULT("Stack size should be at least %d bytes", ONE_KB / 4);
+		return INSUFFICIENT_STACK;
+	}
+
+	return _OS_CreateAperiodicTask(priority,
+		stack,
+		stack_size_in_bytes,
+#if OS_WITH_TASK_NAME==1
+		task_name,
+#endif //OS_WITH_TASK_NAME
+		USER_TASK,
+		task,
+		task_entry_function,
+		pdata);		
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// The task creation routine for Aperiodic tasks
+//		OS Internal function with more arguments
+///////////////////////////////////////////////////////////////////////////////
+OS_Error _OS_CreateAperiodicTask(UINT16 priority, 
+	UINT32 * stack, UINT32 stack_size_in_bytes,
+#if OS_WITH_TASK_NAME==1
+	const INT8 * task_name,
+#endif //OS_WITH_TASK_NAME
+	UINT16 options,
 	OS_AperiodicTask * task,
 	void(* task_entry_function)(void * pdata),
 	void * pdata)
@@ -200,20 +278,7 @@ OS_Error OS_CreateAperiodicTask(UINT16 priority,
 		return INVALID_ARG;
 	}
 
-	if(stack_size_in_bytes < ONE_KB / 4) // Validate for minimum stack size 256 bytes
-	{
-		FAULT("Stack size should be at least %d bytes", ONE_KB / 4);
-		return INSUFFICIENT_STACK;
-	}
-
-	if(priority > MIN_PRIORITY)
-	{
-		FAULT("The priority value %d should be within 0 and %d", priority, MIN_PRIORITY);
-		return INVALID_PRIORITY;
-	}
-
-
-	// Conver the stack_size_in_bytes into number of words
+	// Convert the stack_size_in_bytes into number of words
 	stack_size = stack_size_in_bytes >> 2;
 
 	task->stack = stack;
@@ -223,7 +288,7 @@ OS_Error OS_CreateAperiodicTask(UINT16 priority,
 	task->task_function = task_entry_function;
 	task->pdata = pdata;
 	task->priority = priority;
-	task->attributes = (APERIODIC_TASK | USER_TASK);
+	task->attributes = (APERIODIC_TASK | options);
 #if OS_WITH_VALIDATE_TASK==1
 	task->signature = TASK_SIGNATURE;
 #endif
@@ -231,9 +296,12 @@ OS_Error OS_CreateAperiodicTask(UINT16 priority,
 	strncpy(task->name, task_name, OS_TASK_NAME_SIZE);
 #endif // OS_WITH_TASK_NAME	
 
+	// Note down the owner process
+	task->owner_process = g_current_process;
+
 	OS_ENTER_CRITICAL(intsts); // Enter critical section
 	task->id = ++g_task_id_counter;
-	_OS_QueueInsert(&g_ap_ready_q, task, priority); //add task to aperiodic wait queue
+	_OS_QueueInsert(&g_ap_ready_q, task, priority); // Add the task to aperiodic wait queue
 	OS_EXIT_CRITICAL(intsts); // Exit the critical section
 	
 	if(_OS_IsRunning)

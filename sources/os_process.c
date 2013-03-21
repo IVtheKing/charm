@@ -9,11 +9,20 @@
 
 #include "os_process.h"
 #include "os_core.h"
+#include "util.h"
+
+UINT16 g_process_id_counter;
 
 OS_Process * g_process_list_head;
 OS_Process * g_process_list_tail;
 
 OS_Process * g_current_process;
+
+#ifdef _USE_STD_LIBS
+	#define FAULT(x, ...) printf(x, ...);
+#else
+	#define FAULT(x, ...)
+#endif
 
 OS_Error OS_CreateProcess(
 	OS_Process *process,
@@ -29,7 +38,7 @@ OS_Error OS_CreateProcess(
 		return INVALID_ARG;
 	}
 
-    if(!process_entry_function)
+	if(!process_entry_function)
 	{
 	    FAULT("One or more invalid %s arguments", "process");
 		return INVALID_ARG;
@@ -42,15 +51,22 @@ OS_Error OS_CreateProcess(
 	process->pdata = pdata;
 	process->next = NULL;
 	
+	OS_ENTER_CRITICAL(intsts); // Enter critical section
+	
+	process->id = ++g_process_id_counter;	// Assign a unique process id
+	
 	// Add to the process list
-	OS_ENTER_CRITICAL(intsts); 	// Enter the critical section
 	if(g_process_list_tail)
 	{
 		g_process_list_tail->next = process;
+		g_process_list_tail = process;
 	}
 	else
 	{
 		g_process_list_head = g_process_list_tail = process;
 	}
+	
 	OS_EXIT_CRITICAL(intsts); 	// Exit the critical section
+	
+	return SUCCESS; 
 }

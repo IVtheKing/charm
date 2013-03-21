@@ -57,11 +57,11 @@ struct OS_PeriodicTask
 	UINT64 alarm_time;	// To be used for maintaining a queue ordered based on this key value
 
 	UINT32 *top_of_stack;	// Do NOT REORDER THIS MEMBER, THE OFFSET 'SP_OFFSET_IN_TCB' IS USED IN ASSEMBLY
+	OS_Process *owner_process;	// Do NOT REORDER THIS MEMBER, THE OFFSET 'OWNER_OFFSET_IN_TCB' IS USED IN Assembly
 
 	// Folliwing attributes are common in both type of tasks. They should be in the same order.
 	UINT16 attributes;
 	UINT16 id;
-	OS_Process *owner_process;
 #if OS_WITH_TASK_NAME==1
 	INT8 name[OS_TASK_NAME_SIZE];
 #endif
@@ -103,10 +103,10 @@ struct OS_AperiodicTask
 
 	// Folliwing attributes are common in both type of tasks. They should be in the same order
 	UINT32 *top_of_stack;	// Do NOT REORDER THIS MEMBER, THE OFFSET 'SP_OFFSET_IN_TCB' IS USED IN Assembly
+	OS_Process *owner_process;	// Do NOT REORDER THIS MEMBER, THE OFFSET 'OWNER_OFFSET_IN_TCB' IS USED IN Assembly
 
 	UINT16 attributes;
 	UINT16 id;
-	OS_Process *owner_process;
 #if OS_WITH_TASK_NAME==1
 	INT8 name[OS_TASK_NAME_SIZE];
 #endif
@@ -120,5 +120,30 @@ struct OS_AperiodicTask
 	void (*task_function)(void *pdata);
 	void *pdata;
 };
+
+OS_Error _OS_CreatePeriodicTask(
+	UINT32 period_in_us,
+	UINT32 deadline_in_us,
+	UINT32 budget_in_us,
+	UINT32 phase_shift_in_us,
+	UINT32 *stack,
+	UINT32 stack_size_in_bytes,
+#if OS_WITH_TASK_NAME==1
+	const INT8 * task_name,
+#endif // OS_WITH_TASK_NAME			
+	UINT16 options,
+	OS_PeriodicTask *task,
+	void (*periodic_entry_function)(void *pdata),
+	void *pdata);
+
+OS_Error _OS_CreateAperiodicTask(UINT16 priority, 
+	UINT32 * stack, UINT32 stack_size_in_bytes,
+#if OS_WITH_TASK_NAME==1
+	const INT8 * task_name,
+#endif //OS_WITH_TASK_NAME
+	UINT16 options,
+	OS_AperiodicTask * task,
+	void(* task_entry_function)(void * pdata),
+	void * pdata);
 
 #endif // _OS_TASK_H

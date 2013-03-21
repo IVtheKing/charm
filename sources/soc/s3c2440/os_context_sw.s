@@ -8,6 +8,7 @@
 @-------------------------------------------------------------------------------
 
 SP_OFFSET_IN_TCB		=	12
+OWNER_OFFSET_IN_TCB		=	16
 
 SOLICITED_STACK_TYPE	=	1
 INTERRUPT_STACK_TYPE	=	2
@@ -63,6 +64,7 @@ INTMASK     = 0xc0
 .global	_OS_ReSchedule
 
 .global	g_current_task
+.global	g_current_process
 .global	_SVC_STACK_TOP_
 
 	.code 32             		@ CODE32
@@ -128,7 +130,7 @@ _IRQHandler_:
 	stmfd	sp!, {r4-r12}		@ Store some registers
 	
 	ldmfd	r0!, {r4-r7}		@ Restore r0-r3 from the IRQ stack
-	stmfd	sp!, {r4-r7}		@ Store old r4-r7 which are in r0-r3
+	stmfd	sp!, {r4-r7}		@ Store old r0-r3 which are in r4-r7
 	
 	stmfd	sp!, {r1}			@ Save spsr_irq
 	
@@ -138,6 +140,9 @@ _IRQHandler_:
 	
 	@ Update the latest stack pointer in current task`s TCB
 	@ Also set g_current_task to NULL as we have fully saved the context
+	ldr		r1,=g_current_process		
+	mov		r0, #0
+	str		r0, [r1]					@ Reset the g_current_process to NULL
 	ldr		r1,=g_current_task
 	mov		r0, #0
 	swp		r0,	r0, [r1]				@ Exchange g_current_task value with register
@@ -180,10 +185,15 @@ _OS_ContextRestore:		@ void C6713_ContextRestore(new_thread_pointer)
 
 _OS_ContextRestore_safe:
 	
+	@ Set the g_current_process to the current threads owner
+	ldr		r1, =g_current_process
+	ldr		r2, [r0, #OWNER_OFFSET_IN_TCB]
+	str		r2, [r1]				@ Store the new thread`s owner into g_current_process
+
 	@ Move the current thread pointer into r1
-	ldr		r1, =g_current_task	
+	ldr		r1, =g_current_task
 	str		r0, [r1]				@ Store the new thread`s TCB pointer into g_current_task
-	
+		
 	@ Get the new stack pointer from the new task`s TCB
 	ldr		r2, [r0, #SP_OFFSET_IN_TCB]
 	
