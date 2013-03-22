@@ -68,15 +68,14 @@ int b = 1;
 int c = 2;
 int d = 3;
 
-
 int test_short_intervals()
 {
 	SyslogStr("Calling - ",  __func__);
 
-	OS_CreatePeriodicTask( 1000, 1000, 500, 100, stack1, sizeof(stack1), "LED1", &task1, task_short_period, &a);
- 	OS_CreatePeriodicTask( 1200, 1200, 200, 450, stack2, sizeof(stack2), "LED2", &task2, task_short_period, &b);
- 	OS_CreatePeriodicTask( 5000, 5000, 300, 210, stack3, sizeof(stack3), "LED3", &task3, task_short_period, &c);
- 	OS_CreatePeriodicTask(20000, 20000, 900, 370, stack4, sizeof(stack4), "LED4", &task4, task_short_period, &d);
+	OS_CreatePeriodicTask( 1000, 1000, 200, 1000, stack1, sizeof(stack1), "LED1", &task1, task_short_period, &a);
+ 	OS_CreatePeriodicTask( 1200, 1200, 400, 4500, stack2, sizeof(stack2), "LED2", &task2, task_short_period, &b);
+ 	OS_CreatePeriodicTask( 5000, 5000, 500, 2100, stack3, sizeof(stack3), "LED3", &task3, task_short_period, &c);
+ 	OS_CreatePeriodicTask(20000, 20000, 900, 3700, stack4, sizeof(stack4), "LED4", &task4, task_short_period, &d);
 
 	return 0;
 }
@@ -131,11 +130,11 @@ int test_TBE()
 
 void process_entry(void * pdata)
 {
-	test_casual();
-//	test_short_intervals(argc, argv);
-//	test_long_intervals(argc, argv);
-//	test_long_budget(argc, argv);
-//	test_TBE(argc, argv);
+//	test_casual();
+	test_short_intervals();
+//	test_long_intervals();
+//	test_long_budget();
+//	test_TBE();
 
 }
 
