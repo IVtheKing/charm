@@ -25,6 +25,7 @@
 #define MAX_TIMER_COUNT		0xffff
 
 #define TIMER0_START		0x001
+#define TIMER0_RUNNING		0x001
 #define TIMER0_UPDATE		0x002
 #define TIMER0_AUTORELOAD	0x008
 
@@ -121,14 +122,16 @@ void _OS_TimerInterrupt(UINT32 timer)
 			break;
 #if ENABLE_SYNC_TIMER==1
 		case TIMER1:
-			// As part of SYNC timer interrupt handling, we will start OS Timer with
-			// highest timeout. This is done so that we can count for the elapsed time
-			// later when we setup os_timer
-			rTCNTB0 = MAX_TIMER_COUNT;
-			timer0_count_buffer = MAX_TIMER_COUNT;
-			rTCON = (rTCON & (~0x0f)) | TIMER0_UPDATE;
-			rTCON = (rTCON & (~0x0f)) | (TIMER0_START | TIMER0_AUTORELOAD); 		
-			
+			if(!(rTCON & TIMER0_RUNNING))	// Touch Timer0 only if it is not running
+			{
+				// As part of SYNC timer interrupt handling, we will start OS Timer with
+				// highest timeout. This is done so that we can count for the elapsed time
+				// later when we setup os_timer
+				rTCNTB0 = MAX_TIMER_COUNT;
+				timer0_count_buffer = MAX_TIMER_COUNT;
+				rTCON = (rTCON & (~0x0f)) | TIMER0_UPDATE;
+				rTCON = (rTCON & (~0x0f)) | (TIMER0_START | TIMER0_AUTORELOAD); 		
+			}			
 			// Keep track of number of SYNC interrupts
 #if OS_ENABLE_CPU_STATS==1				
 			sync_intr_counter++;

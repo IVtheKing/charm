@@ -204,10 +204,14 @@ void _OS_Timer0ISRHandler(void *arg)
 #endif	// ENABLE_SYNC_TIMER
 	{
 		KlogStr(KLOG_OS_TIMER_ISR, "OS Timer ISR - ", ((OS_AperiodicTask *)arg)->name);
-		
+				
 		// Acknowledge the interrupt
 		_OS_TimerInterrupt(TIMER0);
 	}
+	
+#if ENABLE_SYNC_TIMER==1	
+	g_sync_expected = FALSE;
+#endif	// ENABLE_SYNC_TIMER
 	
 	g_global_time = g_next_wakeup_time;	
 	g_next_wakeup_time = (UINT64)-1;
@@ -311,7 +315,7 @@ void _OS_Timer0ISRHandler(void *arg)
 	// Update timeout based on the periodic ready/wait queue and the ready task's remaining budget
 	_OS_SetNextTimeout();
 
-	KlogStr(KLOG_CONTEXT_SWITCH, "ContextSW To - ", task->name);
+	KlogStr(KLOG_CONTEXT_SWITCH, "ContextSW To : ", task->name);
 	
 	_OS_ContextRestore(task);	// This has the affect of g_current_task = task;
 }
@@ -430,6 +434,12 @@ void _OS_Timer1ISRHandler(void *arg)
 {
 	KlogStr(KLOG_SYNC_TIMER_ISR, "SYNC Timer ISR", " entered");
 	
+	// Acknowledge the interrupt
+	_OS_TimerInterrupt(TIMER1);
+
+	// Time of next SYNC
+	g_next_sync_time += SYNC_TIMER_INTERVAL;
+
 	if(!g_sync_expected)
 	{
 #if OS_ENABLE_CPU_STATS==1	
@@ -437,14 +447,12 @@ void _OS_Timer1ISRHandler(void *arg)
 #endif // OS_ENABLE_CPU_STATS
 	
 		Syslog32("KERNEL WARNING: SYNC interrupt not expected - ", g_current_timeout);		
+	
+		// The SYNC timer triggered before we expected it. So just yield and let the 
+		// OS Timer do its work
+		_OS_ContextRestore(arg);
 	}
 		
-	// Acknowledge the interrupt
-	_OS_TimerInterrupt(TIMER1);
-	
-	// Time of next SYNC
-	g_next_sync_time += SYNC_TIMER_INTERVAL;
-	
 	// Handle the interrupt as if this is regular OS timer interrupt
 	_OS_Timer0ISRHandler(arg);
 	
