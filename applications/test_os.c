@@ -73,9 +73,9 @@ int test_short_intervals()
 	SyslogStr("Calling - ",  __func__);
 
 	OS_CreatePeriodicTask( 2000, 2000, 500, 500, stack1, sizeof(stack1), "LED1", &task1, task_short_period, &a);
-//  	OS_CreatePeriodicTask( 1200, 1200, 500, 4500, stack2, sizeof(stack2), "LED2", &task2, task_short_period, &b);
-//  	OS_CreatePeriodicTask( 5000, 5000, 500, 2500, stack3, sizeof(stack3), "LED3", &task3, task_short_period, &c);
-//  	OS_CreatePeriodicTask(20000, 20000, 1000, 3500, stack4, sizeof(stack4), "LED4", &task4, task_short_period, &d);
+ 	OS_CreatePeriodicTask( 1200, 1200, 500, 4500, stack2, sizeof(stack2), "LED2", &task2, task_short_period, &b);
+ 	OS_CreatePeriodicTask( 5000, 5000, 500, 2500, stack3, sizeof(stack3), "LED3", &task3, task_short_period, &c);
+ 	OS_CreatePeriodicTask(20000, 20000, 1000, 3500, stack4, sizeof(stack4), "LED4", &task4, task_short_period, &d);
 
 	return 0;
 }
