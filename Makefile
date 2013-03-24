@@ -57,9 +57,9 @@ AFLAGS		:=	-mcpu=arm920t -EL -g --defsym NOR_BOOT=1
 CFLAGS		:=	-Wall -nostdinc -mcpu=$(CORE) -mlittle-endian
 LDFLAGS		:=	-nostartfiles -nostdlib -T$(LINKERS_CRIPT) -Map $(MAP_FILE) -L $(LIBPATH) -lgcc
 ifeq ($(CONFIG),debug)
-	CFLAGS	:=	-g -O0 $(CFLAGS)
+	CFLAGS	:=	-g -O0 -D DEBUG $(CFLAGS)
 else ifeq ($(CONFIG),release)
-	CFLAGS	:=	-O2 $(CFLAGS)
+	CFLAGS	:=	-O2 -D RELEASE $(CFLAGS)
 endif
 
 

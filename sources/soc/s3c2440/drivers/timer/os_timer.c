@@ -192,7 +192,7 @@ UINT32 _OS_UpdateTimer(UINT32 * delay_in_us)
 	{
 		// Case 1
 		// Take this time from the new task, extra time is accounted for in the new task
-		elapsed_count = (MAX_TIMER_COUNT - rTCNTO0);	
+		elapsed_count = (MAX_TIMER_COUNT - rTCNTO0) + OS_TIMER_ELAPSED_TIME_ADJ;	
 		budget_spent_us = 0;							
 	}
 	else if(timer0_count_buffer > 0)
@@ -202,7 +202,7 @@ UINT32 _OS_UpdateTimer(UINT32 * delay_in_us)
 		{
 			// Case 2
 			// Take this time from the new task, extra time is accounted for in the new task
-			elapsed_count = (MAX_TIMER_COUNT - tcount);		
+			elapsed_count = (MAX_TIMER_COUNT - tcount) + OS_TIMER_ELAPSED_TIME_ADJ;		
 			budget_spent_us = 0;
 		}
 		else
@@ -210,7 +210,7 @@ UINT32 _OS_UpdateTimer(UINT32 * delay_in_us)
 			// Case 3. We must have requested shorter timeout.
 			// Extra time is accounted for in the old task. The time spent till now should be accounted for in the old task.
 			elapsed_count = 0;								
-			tcount = (timer0_count_buffer - tcount);
+			tcount = (timer0_count_buffer - tcount) + OS_TIMER_ELAPSED_TIME_ADJ;
 			budget_spent_us = CONVERT_TICKS_TO_us(tcount);	// Convert it to us right away.
 		}
 	}

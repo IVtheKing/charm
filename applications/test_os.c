@@ -72,8 +72,8 @@ int test_short_intervals()
 {
 	SyslogStr("Calling - ",  __func__);
 
-	OS_CreatePeriodicTask( 2000, 2000, 500, 500, stack1, sizeof(stack1), "LED1", &task1, task_short_period, &a);
- 	OS_CreatePeriodicTask( 1200, 1200, 500, 4500, stack2, sizeof(stack2), "LED2", &task2, task_short_period, &b);
+	OS_CreatePeriodicTask( 100, 100, 50, 50, stack1, sizeof(stack1), "LED1", &task1, task_short_period, &a);
+ 	OS_CreatePeriodicTask( 1200, 1200, 100, 400, stack2, sizeof(stack2), "LED2", &task2, task_short_period, &b);
  	OS_CreatePeriodicTask( 5000, 5000, 500, 2500, stack3, sizeof(stack3), "LED3", &task3, task_short_period, &c);
  	OS_CreatePeriodicTask(20000, 20000, 1000, 3500, stack4, sizeof(stack4), "LED4", &task4, task_short_period, &d);
 
@@ -120,9 +120,9 @@ int test_TBE()
 {
 	SyslogStr("Calling - ",  __func__);
 
-	OS_CreatePeriodicTask( 1000, 1000, 500, 100, stack1, sizeof(stack1), "LED1", &task1, task_TBE, &a);
- 	OS_CreatePeriodicTask( 1200, 1200, 200, 450, stack2, sizeof(stack2), "LED2", &task2, task_TBE, &b);
- 	OS_CreatePeriodicTask( 5000, 5000, 300, 300, stack3, sizeof(stack3), "LED3", &task3, task_TBE, &c);
+	OS_CreatePeriodicTask( 1000, 1000, 300, 100, stack1, sizeof(stack1), "LED1", &task1, task_TBE, &a);
+ 	OS_CreatePeriodicTask( 1200, 1200, 400, 100, stack2, sizeof(stack2), "LED2", &task2, task_TBE, &b);
+ 	OS_CreatePeriodicTask( 5000, 5000, 500, 100, stack3, sizeof(stack3), "LED3", &task3, task_TBE, &c);
  	OS_CreatePeriodicTask(400000, 400000, 40000, 10000, stack4, sizeof(stack4), "LED4", &task4, task_TBE, &d);
 
 	return 0;
@@ -135,7 +135,6 @@ void process_entry(void * pdata)
 //	test_long_intervals();
 //	test_long_budget();
 //	test_TBE();
-
 }
 
 int main(int argc, char *argv[])
