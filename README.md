@@ -23,4 +23,6 @@ Main Features of the RTOS
 
 * The OS context switch event interrupts are measured to take < 20 micro seconds. The actual time taken by the OS timer interrupt depends on the number of ready tasks at a given time.
 
+* Multiple tasks with periods as much as 10,000 Hz are tested to be working fine with zero drift.
+
 * The RTOS supports zero context store for periodic tasks which means for those periodic tasks which complete before its deadline / budget expiry it stores minimal context information. This is possible because each periodic task does not need to retain its registers between two periods.
