@@ -16,32 +16,36 @@ MEMORY
 	DRAM		: ORIGIN = 0x30000000,  LENGTH = 0x4000000
 }
 
+PHDRS
+{
+   code_seg		PT_LOAD;
+   rodata_seg	PT_LOAD;
+   data_seg		PT_LOAD;
+}
+
 SECTIONS
 {
 	.text :
 	{
 		*(.text.vector)
-		
-	} > DRAM
-
-	.text :
-	{
 		*(.text.startup)
-		
-	} > DRAM
-
-	.text :
-	{
 		*(.text)
-		*(.text.*)		
+		*(.text.*)	
 		
-	} > DRAM
+	} > DRAM : code_seg
+	
+	.rodata :
+	{
+		*(.rodata)
+		*(.rodata.*)
+			
+	} > DRAM : rodata_seg
 	
 	.data :
 	{
 		*(.data)
 		
-	} > DRAM
+	} > DRAM : data_seg
 	
 	.bss :
 	{
@@ -52,11 +56,11 @@ SECTIONS
 		. = ALIGN(4);
 		__bss_end__ = .;
 		
-	} > DRAM
+	} > DRAM : data_seg
 	
 	.stack :
 	{
 		*(.stack)
 						
-	}   > DRAM
+	}   > DRAM : data_seg
 }
