@@ -44,7 +44,6 @@ void task_fn3(void * ptr)
 
 int main(int argc, char *argv[])
 {
-	OS_Init();
 	OS_SemInit(&sem1, 0, 0);
 	OS_SemInit(&sem2, 0, 0);
 	LED_off(0);

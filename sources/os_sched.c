@@ -34,8 +34,6 @@ static UINT32	g_current_timeout;	// The time for which the timer is currently se
 static OS_AperiodicTask g_idle_task;	// A TCB for the idle task
 static UINT32 g_idle_task_stack [OS_IDLE_TASK_STACK_SIZE];
 
-OS_Process	g_kernel_process;	// Kernel process
-
 // External functions used in here
 extern void _OS_InitInterrupts();
 extern void _OS_ContextRestore(void *new_task);
@@ -52,9 +50,9 @@ void _OS_SetAlarm(OS_PeriodicTask *task,
 					BOOL update_timer);
 static void _OS_SetNextTimeout(void);
 void _OS_ReSchedule(void);
+void kernel_process_entry(void * pdata);
 
 // Static methods
-static void kernel_process_entry(void * pdata);
 static void _OS_idle_task(void * ptr);
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -75,10 +73,7 @@ void OS_Start()
 
 		// Reset the current task
 		g_current_task = 0;
-		
-		// Initialize the Kernel process
-		OS_CreateProcess(&g_kernel_process, "kernel", &kernel_process_entry, NULL);
-				
+						
 		// Now go through the list of all processes and call their entry functions
 		g_current_process = g_process_list_head;
 		while(g_current_process)
@@ -107,18 +102,16 @@ void OS_Start()
 		// Call reschedule. 
 		_OS_ReSchedule();
 		
-		// TODO: At this point, I can shutdown the device.
-		
 		// We would never return from the above call. 
 		// The current stack continues as SVC stack handling all interrupts
-		panic("Unexpected System stack unwind");
+		_OS_Exit();
 	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
 // Kernel Process Entry function
 ///////////////////////////////////////////////////////////////////////////////
-static void kernel_process_entry(void * pdata)
+void kernel_process_entry(void * pdata)
 {
 		// Create all kernel tasks. Currently there are:
 		// 		- Idle task

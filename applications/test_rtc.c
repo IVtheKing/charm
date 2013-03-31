@@ -247,7 +247,6 @@ int d = 3;
 
 int main(int argc, char *argv[])
 {
-	OS_Init();
 	OS_SemInit(&input_ready, 0, 0);
 
 	SyslogStr("Calling - ",  __func__);

@@ -139,8 +139,6 @@ void process_entry(void * pdata)
 
 int main(int argc, char *argv[])
 {
-	OS_Init();
-
 	SyslogStr("Calling - ",  __func__);
 	
 	OS_CreateProcess(&test_proc, "test_os", process_entry, NULL);

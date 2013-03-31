@@ -22,7 +22,6 @@ OS_Error OS_SemInit(OS_Sem *sem, INT16 pshared, UINT32 value)
 		return ARGUMENT_ERROR;
 
 	sem->count = value;
-	//OS_InitQ(&sem->queue);	
 	_OS_QueueInit(&sem->periodic_task_queue);
 	_OS_QueueInit(&sem->aperiodic_task_queue);
 	return SUCCESS;

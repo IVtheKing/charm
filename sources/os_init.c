@@ -9,6 +9,7 @@
 
 #include "os_core.h"
 #include "os_queue.h"
+#include "os_process.h"
 #include "mmu.h"
 
 // External functions used in here
@@ -19,10 +20,16 @@ extern _OS_Queue g_wait_q;
 extern _OS_Queue g_ap_ready_q;
 extern _OS_Queue g_block_q;
 
+OS_Process	g_kernel_process;	// Kernel process
+
+void _OS_Init();
+void _OS_Exit();
+void kernel_process_entry(void * pdata);
+
 ///////////////////////////////////////////////////////////////////////////////
 // Initialization function for the OS
 ///////////////////////////////////////////////////////////////////////////////
-void OS_Init(int argc, char *argv[])
+void _OS_Init()
 {
 	// Call system initializatoin routine
 	_OS_SystemInit();
@@ -46,6 +53,25 @@ void OS_Init(int argc, char *argv[])
 	_OS_QueueInit(&g_wait_q);
 	_OS_QueueInit(&g_ap_ready_q);
 	_OS_QueueInit(&g_block_q);
+	
+	// Initialize the Kernel process
+	OS_CreateProcess(&g_kernel_process, "kernel", &kernel_process_entry, NULL);
+
+	// Calling main which will start the scheduling by calling OS_Start
+	main(1, " chARM");
+	
+	// The main function should never return if it called OS_Start. 
+	// If it does not call we may return from main.
+	_OS_Exit();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+// This function terminates the OS and shuts down the system
+///////////////////////////////////////////////////////////////////////////////
+void _OS_Exit()
+{
+	// TODO: Stop scheduling & shutdown the system
+	panic("Shutdown");
 }
 
 ///////////////////////////////////////////////////////////////////////////////

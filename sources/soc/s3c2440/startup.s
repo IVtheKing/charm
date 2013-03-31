@@ -134,7 +134,7 @@ R1_nF		=	(1<<30)
    	.section .text.startup      @ AREA ???, CODE, READONLY
    	.code 32             		@ CODE32
 
-   	.global main
+   	.global _OS_Init
 	.global _start	
 	.global	_IRQHandler_
 	.global	_SVC_StackTop_
@@ -168,9 +168,9 @@ ResetHandler:
 	@ Cleear BSS section
     bl 	InitVariables               @ Initialize Global Variables
 
-    ldr	pc, =main					@ Call main
+    ldr	pc, =_OS_Init				@ Call _OS_Init
 
-    b     	.						@ We should never return from main
+    b     	.						@ We should never return from _OS_Init
 
 	.LTORG   
 	
