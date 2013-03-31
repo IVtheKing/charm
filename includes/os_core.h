@@ -71,23 +71,6 @@ extern BOOL _OS_IsRunning;
 extern volatile void * g_current_task;
 
 ///////////////////////////////////////////////////////////////////////////////
-// Process creation APIs
-///////////////////////////////////////////////////////////////////////////////
-
-// API for creating a process. 
-// Input:
-//		process_name: pointer to the process name
-//		process_entry_function: This is the pointer to the process entry function.
-//			The process_entry_function should initialize all process wide data structures
-//			and create all tasks
-OS_Error OS_CreateProcess(
-		OS_Process *process,
-		const INT8 * process_name,
-		void (*process_entry_function)(void *pdata),
-		void *pdata
-	);
-
-///////////////////////////////////////////////////////////////////////////////
 // Task creation APIs
 ///////////////////////////////////////////////////////////////////////////////
 OS_Error OS_CreatePeriodicTask(
@@ -114,6 +97,25 @@ OS_Error OS_CreateAperiodicTask(
 	OS_AperiodicTask *task,
 	void (*task_entry_function)(void *pdata),
 	void *pdata);
+
+///////////////////////////////////////////////////////////////////////////////
+// Process creation APIs
+// Using processes is optional. It is possible to create tasks under the default 
+// kernel process and do everything in those tasks if desired.
+///////////////////////////////////////////////////////////////////////////////
+
+// API for creating a process. 
+// Input:
+//		process_name: pointer to the process name
+//		process_entry_function: This is the pointer to the process entry function.
+//			The process_entry_function should initialize all process wide data structures
+//			and create all tasks
+OS_Error OS_CreateProcess(
+		OS_Process *process,
+		const INT8 * process_name,
+		void (*process_entry_function)(void *pdata),
+		void *pdata
+	);
 
 ///////////////////////////////////////////////////////////////////////////////
 // The following funcstion starts the OS scheduling
