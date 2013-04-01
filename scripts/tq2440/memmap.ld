@@ -37,17 +37,15 @@ SECTIONS
 		*(.text.*)	
 		
 	} > OS_MEM : code_seg
-	
-	. = ALIGN(4096);
-	.rodata :
+
+	.rodata : ALIGN(0x1000)
 	{
 		*(.rodata)
 		*(.rodata.*)
-			
+		
 	} > OS_MEM : rodata_seg
 	
-	. = ALIGN(4096);
-	.data :
+	.data : ALIGN(0x1000)
 	{
 		*(.data)
 		
