@@ -1,9 +1,9 @@
 /********************************************************************************
 	
 						Copyright 2012-2013 xxxxxxx, xxxxxxx
-	File:	os_task.h
+	File:	memmap.ld
 	Author:	Bala B. (bhat.balasubramanya@gmail.com)
-	Description: OS Task Related routines
+	Description: Linker script for the OS image
 	
 ********************************************************************************/
 
@@ -12,8 +12,12 @@ ENTRY(_start)
 
 MEMORY 
 {
-/*	SRAM		: ORIGIN = 0x40000000,  LENGTH = 0x1000		*/
-	DRAM		: ORIGIN = 0x30000000,  LENGTH = 0x4000000
+/*	SRAM		: ORIGIN = 0x40000000,  LENGTH = 0x1000	
+	DRAM		: ORIGIN = 0x30000000,  LENGTH = 0x4000000	
+*/
+
+	OS_MEM		: ORIGIN = 0x30000000,  LENGTH = 0x100000	
+	APP_MEM		: ORIGIN = 0x30100000,  LENGTH = 0x3F00000	
 }
 
 PHDRS
@@ -32,20 +36,22 @@ SECTIONS
 		*(.text)
 		*(.text.*)	
 		
-	} > DRAM : code_seg
+	} > OS_MEM : code_seg
 	
+	. = ALIGN(4096);
 	.rodata :
 	{
 		*(.rodata)
 		*(.rodata.*)
 			
-	} > DRAM : rodata_seg
+	} > OS_MEM : rodata_seg
 	
+	. = ALIGN(4096);
 	.data :
 	{
 		*(.data)
 		
-	} > DRAM : data_seg
+	} > OS_MEM : data_seg
 	
 	.bss :
 	{
@@ -56,11 +62,11 @@ SECTIONS
 		. = ALIGN(4);
 		__bss_end__ = .;
 		
-	} > DRAM : data_seg
+	} > OS_MEM : data_seg
 	
 	.stack :
 	{
 		*(.stack)
 						
-	}   > DRAM : data_seg
+	} > OS_MEM : data_seg
 }

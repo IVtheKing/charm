@@ -3,7 +3,7 @@
 ##						Copyright 2009-2013 xxxxxxx, xxxxxxx
 ##	File:	Makefile
 ##	Author:	Bala B. (bhat.balasubramanya@gmail.com)
-##	Description: Header file for the OS APIs
+##	Description: Makefile for OS files
 ##
 ###################################################################################
 
@@ -39,7 +39,7 @@ include $(wildcard includes/*.mk)
 INCLUDES		:=	$(addprefix -I ,includes $(INCLUDES))
 
 ## Build list of source and object files
-SUBDIRS			:=	sources applications
+SUBDIRS			:=	sources main
 SOURCES			:=	$(wildcard *.c)
 
 ## Include Boot source files
@@ -66,7 +66,7 @@ endif
 ## Rule specifications
 .PHONY:	all boot dep clean
 
-all: $(BOOT_OBJS)
+all:
 	@echo --------------------------------------------------------------------------------
 	@echo Starting build with following parameters:
 	@echo --------------------------------------------------------------------------------
@@ -82,7 +82,7 @@ all: $(BOOT_OBJS)
 	@echo
 	make $(BUILD_TARGET)
 
-boot: 
+boot:
 	@echo --------------------------------------------------------------------------------
 	@echo Starting build with following parameters:
 	@echo --------------------------------------------------------------------------------
