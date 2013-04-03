@@ -46,6 +46,19 @@ int readElfData( int elf, off_t off, size_t size, char *buf );
 void freeElfProgram(Elf32_Program *program);
 void freeElfSegment(Elf32_Segment *segment);
 
+#define	PF_R		0x4		/* p_flags */
+#define	PF_W		0x2
+#define	PF_X		0x1
+
+char phFpags [][4] = { 	"   ",
+						"  X",
+						" W ",
+						" WX",
+						"R  ",
+						"R X",
+						"RW ",
+						"RWX" };
+
 int readElfProgram( int elf, Elf32_Program * program)
 {
 	if(elf < 0) return -1;
@@ -85,19 +98,23 @@ int readElfProgram( int elf, Elf32_Program * program)
 			return -1;
 		}
 		
-		printf("* p[%d] 0x%08x [%d]\n", i, segment->programHdr.p_paddr, segment->programHdr.p_memsz);
+		printf("* p[%d] 0x%08x [%8d] %s\n", i, segment->programHdr.p_paddr, segment->programHdr.p_memsz, 
+											phFpags[segment->programHdr.p_flags & 0x7]);
 		
-		// Get a buffer for this Program
-		if( (segment->programData = (void*)malloc(segment->programHdr.p_memsz)) == NULL ) {
-			fprintf(stderr,"malloc(%d): %s\n", segment->programHdr.p_memsz, strerror(errno));
-			freeElfProgram(program);
-			return -1;
-		}
+		if(segment->programHdr.p_memsz > 0)
+		{
+			// Get a buffer for this Program
+			if( (segment->programData = (void*)malloc(segment->programHdr.p_memsz)) == NULL ) {
+				fprintf(stderr,"malloc(%d): %s\n", segment->programHdr.p_memsz, strerror(errno));
+				freeElfProgram(program);
+				return -1;
+			}
 		
-		// Read in this block of data
-		if( readElfData(elf, segment->programHdr.p_offset, segment->programHdr.p_filesz, segment->programData) < 0 ) {
-			freeElfProgram(program);
-			return -1;
+			// Read in this block of data
+			if( readElfData(elf, segment->programHdr.p_offset, segment->programHdr.p_filesz, segment->programData) < 0 ) {
+				freeElfProgram(program);
+				return -1;
+			}
 		}
 	}
 	
@@ -204,12 +221,13 @@ int main( int argc, char *argv[] )
 	Elf32_Phdr phdr;
 	
 	if( argc != 4 ) {
-		fprintf(stderr,"SYNTAX: %s <elf file 1> <elf file 2> <output elf file>\n",argv[0]);
-		fprintf(stderr,"\nThis tool merges the two elf executable files. \n \
-		Basically the LOADable segments from both elf files are merged. \n \
-		The resulting file only has elf header and program header. \n \
-		Section headers are dropped. \n \
-		The entry point is set to be the entry point of the first elf file. \n");
+		fprintf(stderr,"\nSYNTAX:\n%s <elf file 1> <elf file 2> <output elf file>\n",argv[0]);
+		fprintf(stderr,"\n \
+			This tool merges the two elf executable files. \n \
+			Basically the LOADable segments from both elf files are merged. \n \
+			The resulting file only has elf header and program header. \n \
+			Section headers are dropped. \n \
+			The entry point is set to be the entry point of the first elf file. \n\n");
 		return -1;
 	}
 	
