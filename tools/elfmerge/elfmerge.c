@@ -45,6 +45,8 @@ int readProgramHeader( int elf, off_t off, Elf32_Phdr *phdr );
 int readElfData( int elf, off_t off, size_t size, char *buf );
 void freeElfProgram(Elf32_Program *program);
 void freeElfSegment(Elf32_Segment *segment);
+int mergeElfPrograms(Elf32_Program *prog1, Elf32_Program *prog2, Elf32_Program *out);
+int writeElfProgram(int elf, Elf32_Program *out);
 
 #define	PF_R		0x4		/* p_flags */
 #define	PF_W		0x2
@@ -58,6 +60,104 @@ char phFpags [][4] = { 	"   ",
 						"R X",
 						"RW ",
 						"RWX" };
+
+int writeElfProgram(int elf, Elf32_Program *out)
+{
+	if(!out) return -1;
+	
+	// First write the elf header
+	write(elf, &out->fileHdr, sizeof(Elf32_Ehdr));
+
+	// Now copy program headers	
+	Elf32_Segment * segment = out->segmentHead;
+	while(segment) {
+		
+		// Write the section headers
+		write(elf, &segment->programHdr, sizeof(Elf32_Phdr));
+	
+		// Go to next segment		
+		segment = segment->next;
+	}
+	
+	// Now the segment data
+	segment = out->segmentHead;
+	while(segment) {
+		
+		// Write the section headers
+		write(elf, segment->programData, segment->programHdr.p_filesz);
+	
+		// Go to next segment		
+		segment = segment->next;
+	}
+	
+	return 0;
+}
+
+int mergeElfPrograms(Elf32_Program *prog1, Elf32_Program *prog2, Elf32_Program *out)
+{
+	if(!prog1 || !prog2 || !out) return -1;
+
+	// Copy the e_ident from the first file
+	for(int i = 0; i < EI_NIDENT; i++) {
+		out->fileHdr.e_ident[i] = prog1->fileHdr.e_ident[i];
+	}
+	
+	out->fileHdr.e_type = ET_EXEC;
+	out->fileHdr.e_machine = EM_ARM;
+	out->fileHdr.e_version = EV_CURRENT;
+	out->fileHdr.e_entry = prog1->fileHdr.e_entry;
+	out->fileHdr.e_phoff = sizeof(Elf32_Ehdr);
+	out->fileHdr.e_shoff = 0;	// No section headers
+	out->fileHdr.e_flags = prog1->fileHdr.e_flags;
+	out->fileHdr.e_ehsize = sizeof(Elf32_Ehdr);
+	out->fileHdr.e_phentsize = sizeof(Elf32_Phdr);
+
+	// Move the whole section list from the first input program
+	out->segmentHead = prog1->segmentHead;
+	out->segmentTail = prog1->segmentTail;
+	out->segmentCount = prog1->segmentCount;
+	prog1->segmentHead = prog1->segmentTail = NULL;
+	prog1->segmentCount = 0;
+		
+	printf("* segmentCount = %d\n", out->segmentCount);
+		
+	// Add the segment list from second program also to the output program
+	if(out->segmentHead) {
+		out->segmentTail->next = prog2->segmentHead;
+		out->segmentTail =  prog2->segmentTail;
+	}
+	else {
+		out->segmentHead = prog2->segmentHead;
+		out->segmentTail = prog2->segmentTail;
+	}
+	
+	out->segmentCount += prog2->segmentCount;
+	prog2->segmentHead = prog2->segmentTail = NULL;
+	prog2->segmentCount = 0;
+	
+	out->fileHdr.e_phnum = out->segmentCount;
+	
+	printf("* segmentCount = %d\n", out->segmentCount);
+	
+	// Now we have to correct the virtual addresses of individual segments 
+	// and correct file offsets of data pointers
+	Elf32_Segment * segment = out->segmentHead;
+	int index = 0;
+	int offset = sizeof(Elf32_Ehdr) + out->segmentCount * sizeof(Elf32_Phdr);
+	while(segment) {
+		
+		// TODO: Validate the virtual addresses
+	
+		// Correct file offsets
+		segment->programHdr.p_offset = offset;
+		offset += segment->programHdr.p_filesz;
+
+		// Go to next segment		
+		segment = segment->next;
+	}
+		
+	return 0;
+}
 
 int readElfProgram( int elf, Elf32_Program * program)
 {
@@ -259,13 +359,25 @@ int main( int argc, char *argv[] )
 	// Process the first file
 	//////////////////////////////////////////////////////////////////////////////////////
 	
-	readElfProgram(elf1, &elfProg1);
-	readElfProgram(elf2, &elfProg2);	
+	if(readElfProgram(elf1, &elfProg1) < 0) {
+		goto Exit;
+	}
 	
+	if(readElfProgram(elf2, &elfProg2) < 0) {
+		goto Exit;
+	}
+	
+	mergeElfPrograms(&elfProg1, &elfProg2, &elfProgOut);
+	
+	writeElfProgram(elfOut, &elfProgOut);
+	
+Exit:
 	close(elf1);
 	close(elf2);
-	
+	close(elfOut);
+
 	freeElfProgram(&elfProg1);
 	freeElfProgram(&elfProg2);
+	freeElfProgram(&elfProgOut);
 	return 0;
 }
