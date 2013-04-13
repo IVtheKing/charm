@@ -28,9 +28,11 @@
 Node_Ramdisk ramdisk;
 
 int makeRamdiskNode(int rdfile, Node_Ramdisk *rd);
-int readRamdiskHdr( int rdfile, FS_RamdiskHdr *rd );
-int readFileData( int rdfile, off_t off, size_t size, char *buf );
-int readFileHeader( int rdfile, off_t off, FS_FileHdr *fileHdr );
+int ramdiskWriteFile(int rdfile, Node_Ramdisk *rd);
+int readRamdiskHdr(int rdfile, FS_RamdiskHdr *rd);
+int readFileData(int rdfile, off_t off, size_t size, char *buf);
+int readFileHeader(int rdfile, off_t off, FS_FileHdr *fileHdr);
+int fixFileOffsets(Node_File *file, int * offset);
 
 int readRamdiskHdr( int rdfile, FS_RamdiskHdr *rd )
 {
@@ -180,6 +182,66 @@ int makeRamdiskNode(int rdfile, Node_Ramdisk *rd)
 	return 0;
 }
 
+// This function fixes the offsets of the current file based on all the files in the 
+// current and sub folders. 
+// The input argument offset is the offset of the first byte of this file
+// The argument offset will be updated to return the current offset after writing this file and
+// all sub files (if this is a folder).
+int fixFileOffsets(Node_File *file, int * offset)
+{
+	if(!file) {
+		fprintf(stderr,"ERROR: fixFileOffsets invalid arguments\n");
+		goto Error;
+	}
+	
+	if(!offset) {
+		fprintf(stderr,"ERROR: fixFileOffsets invalid arguments - %s\n", file->fileHdr.fileName);
+		goto Error;
+	}
+	
+	// Update the offset in the current file
+	file->fileHdr.offset = *offset;
+	
+	// Check if this is a folder
+	if((file->fileHdr.flags & F_DIR_MASK) == F_DIR) 
+	{
+		// Create space for all the file headers
+		*offset += (file->fileHdr.fileCount * sizeof(FS_FileHdr));
+	
+		// If this is a folder, update offsets for all files in this filder
+		Node_File *child = file->child;
+		while(child)
+		{
+			if(fixFileOffsets(child, offset) < 0) {
+				goto Error;
+			}
+			
+			child = child->next;
+		}
+	}
+	else
+	{
+		// This is not a folder. Create space for the file data
+		*offset += file->fileHdr.length;
+	}
+	
+	return 0;
+	
+Error:
+	return -1;
+	
+}
+
+int ramdiskWriteFile(int rdfile, Node_Ramdisk *rd)
+{
+	
+	// First fix the offsets from the root folder
+	
+	// First we need to fix the offsets of all nodes in the ramdisk
+	
+	return 0;	
+}
+
 int main( int argc, char *argv[] ) 
 {
 	int rdfile;
@@ -247,7 +309,7 @@ int main( int argc, char *argv[] )
 		return rdfile;
 	}
 	
-//	ramdiskWriteFile(rdfile, &ramdisk);
+	ramdiskWriteFile(rdfile, &ramdisk);
 	
 Exit:
 	
