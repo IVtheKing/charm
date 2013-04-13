@@ -26,12 +26,13 @@ ifeq ($(SOC), s3c2440)
 	CORE := arm920t
 endif
 
+ROOT_DIR		:=	$(realpath ../..)
 BUILD_DIR		:=	$(DST)/$(CONFIG)-$(TARGET)
 MAP_FILE		:=	$(BUILD_DIR)/$(TARGET).map
 LINKERS_CRIPT	:=	scripts/$(TARGET)/memmap.ld
 DEP_DIR			:=	$(BUILD_DIR)/dep
 OBJ_DIR			:=	$(BUILD_DIR)/obj
-BUILD_TARGET	:=	$(BUILD_DIR)/$(TARGET).elf
+KERNEL_TARGET	:=	$(BUILD_DIR)/$(TARGET).elf
 BOOT_TARGET		:=	$(BUILD_DIR)/boot.elf
 
 ## Create INCLUDES 
@@ -64,11 +65,16 @@ endif
 
 
 ## Rule specifications
-.PHONY:	all boot dep clean
+.PHONY:	all boot dep clean ramdiskmk elfmerge tools kernel
 
 all:
+	make tools
+	make boot
+	make kernel
+
+kernel:
 	@echo --------------------------------------------------------------------------------
-	@echo Starting build with following parameters:
+	@echo Building kernel with following parameters:
 	@echo --------------------------------------------------------------------------------
 	@echo TARGET=$(TARGET) 
 	@echo SOC=$(SOC)
@@ -80,11 +86,11 @@ all:
 	@echo OBJS=$(OBJS)
 	@echo INCLUDES=$(INCLUDES)
 	@echo
-	make $(BUILD_TARGET)
+	make $(KERNEL_TARGET)
 
 boot:
 	@echo --------------------------------------------------------------------------------
-	@echo Starting build with following parameters:
+	@echo Building boot with following parameters:
 	@echo --------------------------------------------------------------------------------
 	@echo TARGET=$(TARGET) 
 	@echo SOC=$(SOC)
@@ -104,14 +110,30 @@ $(OBJ_DIR)/%.o: %.c
 	@test -d $(dir $@) || mkdir -pm 775 $(dir $@)
 	$(CC) -c $(CFLAGS) $(INCLUDES) $< -o $@
 
-$(BUILD_TARGET): $(OBJS) $(OS_TARGET)
+$(KERNEL_TARGET): $(OBJS) $(OS_TARGET)
 	$(LINK) $^ $(LDFLAGS) -o $@
 
 $(BOOT_TARGET): $(BOOT_OBJS)
 	$(LINK) -nostartfiles -nostdlib -Ttext 0x00000000 $(BOOT_OBJS) -o $@
 
+tools: 
+	@echo --------------------------------------------------------------------------------
+	@echo Building necessary tools
+	@echo --------------------------------------------------------------------------------
+	@echo
+	make ramdiskmk 
+	make elfmerge
+
+ramdiskmk:
+	make -C tools/$@
+	
+elfmerge:
+	make -C tools/$@
+
 clean:
 	rm -rf $(DST)
+	make -C tools/elfmerge clean
+	make -C tools/ramdiskmk clean
 
 ## Validate the arguments for build
 ifneq ($(CONFIG),debug)

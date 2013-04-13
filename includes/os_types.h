@@ -11,9 +11,17 @@
 #define _OS_TYPES_H
 
 //macro definitions
+#ifndef TRUE
 #define TRUE 1
+#endif
+
+#ifndef FALSE
 #define FALSE 0
+#endif
+
+#ifndef NULL
 #define NULL 0
+#endif // NULL
 
 ///////////////////////////////////////////////////////////////////////////////
 // Redefine datatypes so that the OS can be ported easily on

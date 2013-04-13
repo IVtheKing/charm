@@ -30,8 +30,6 @@
 #ifndef _SYS_ELF_H
 #define	_SYS_ELF_H
 
-#pragma ident	"@(#)elf.h	1.70	08/05/13 SMI"
-
 #if !defined(__APPLE__)
 #include "elftypes.h"
 #else /* is Apple Mac OS X */

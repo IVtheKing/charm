@@ -1,9 +1,15 @@
 ///////////////////////////////////////////////////////////////////////////////
+//	
+//						Copyright 2013 xxxxxxx, xxxxxxx
+//	File:	elfmerge.c
+//	Author:	Bala bhat (bhat.balasubramanya@gmail.com)
+//
 //	Description: This tool merges the two elf executable files.
 //		Basically the LOADable segments from both elf files are merged.
 //		The resulting file only has elf header and program header. Section headers 
 //		are dropped.
 //		The entry point is set to be the entry point of the first elf file.
+//
 ///////////////////////////////////////////////////////////////////////////////
 
 #include <stdio.h>
@@ -142,7 +148,6 @@ int mergeElfPrograms(Elf32_Program *prog1, Elf32_Program *prog2, Elf32_Program *
 	// Now we have to correct the virtual addresses of individual segments 
 	// and correct file offsets of data pointers
 	Elf32_Segment * segment = out->segmentHead;
-	int index = 0;
 	int offset = sizeof(Elf32_Ehdr) + out->segmentCount * sizeof(Elf32_Phdr);
 	while(segment) {
 		
@@ -308,18 +313,10 @@ int readElfData( int elf, off_t off, size_t size, char *buf )
 
 int main( int argc, char *argv[] ) 
 {
-	const char *elfFile1 = NULL;
-	const char *elfFile2 = NULL;
-	const char *elfFileOut = NULL;
 	int elf1;
 	int elf2;
 	int elfOut;
-	int ret,i;
-	char *buf;
-	
-	Elf32_Ehdr ehdr;
-	Elf32_Phdr phdr;
-	
+		
 	if( argc != 4 ) {
 		fprintf(stderr,"\nSYNTAX:\n%s <elf file 1> <elf file 2> <output elf file>\n",argv[0]);
 		fprintf(stderr,"\n \
@@ -331,26 +328,22 @@ int main( int argc, char *argv[] )
 		return -1;
 	}
 	
-	elfFile1 = argv[1];
-	elfFile2 = argv[2];
-	elfFileOut = argv[3];
-	
 	// Open input files
-	if( (elf1=open(elfFile1,O_RDONLY)) < 0 ) {
+	if( (elf1=open(argv[1],O_RDONLY)) < 0 ) {
 		fprintf(stderr,"open(\"%s\",O_RDONLY): %s\n",
-						elfFile1,
+						argv[1],
 						strerror(errno));
 		return elf1;
 	}
-	if( (elf2=open(elfFile2,O_RDONLY)) < 0 ) {
+	if( (elf2=open(argv[2],O_RDONLY)) < 0 ) {
 		fprintf(stderr,"open(\"%s\",O_RDONLY): %s\n",
-						elfFile2,
+						argv[2],
 						strerror(errno));
 		return elf2;
 	}
-	if( (elfOut=open(elfFileOut,O_WRONLY|O_CREAT|O_TRUNC, 0644)) < 0 ) {
+	if( (elfOut=open(argv[3],O_WRONLY|O_CREAT|O_TRUNC, 0644)) < 0 ) {
 		fprintf(stderr,"open(\"%s\",O_WRONLY|O_CREAT): %s\n",
-						elfFileOut,
+						argv[3],
 						strerror(errno));
 		return elfOut;
 	}

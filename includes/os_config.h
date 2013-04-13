@@ -89,6 +89,9 @@
 #define TASK_MIN_PERIOD		100	// 100 uSec
 #define TASK_MIN_BUDGET		100 // 100 uSec
 
+// File system & Ramdisk related
+#define MAX_FILE_NAME_SIZE	40
+
 // Debug & Info related
 
 // Define the Debug masks

@@ -1,6 +1,6 @@
-BIN=build/elfmerge
-OBJ=build/elfmerge.o
-SRC=elfmerge.c
+BIN=build/ramdiskmk
+OBJ=build/ramdiskmk.o
+SRC=ramdiskmk.c
 
 ROOT_DIR	:=	$(realpath ../..)
 
