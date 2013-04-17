@@ -597,83 +597,56 @@ Exit:
 
 int ramdiskAddFolder(Node_Ramdisk *rd, const char * dst, const char * foldername)
 {
-// 	int addfile = -1;
-// 	struct stat stat_buf;
-// 	int status = -1;
-// 
-// 	if(!rd || !dst || !filename)
-// 	{
-// 		fprintf(stderr,"ramdiskAddFile: Argument error\n");
-// 		return -1;	
-// 	}
-// 	if(!rd->root)
-// 	{
-// 		fprintf(stderr,"ramdiskAddFile: Root file system is not mounted\n");
-// 		return -1;	
-// 	}
-// 	
-// 	// Add the new file to ramdisk
-// 	if((addfile = open(filename,O_RDONLY)) < 0) {
-// 		fprintf(stderr,"open(\"%s\",O_RDONLY): %s\n",
-// 						filename,
-// 						strerror(errno));
-// 		status = addfile;
-// 		goto Exit;
-// 	}
-// 
-// 	if((status = stat(filename, &stat_buf)) < 0)
-// 	{
-// 		fprintf(stderr,"stat(\"%s\"): %s\n",
-// 						filename,
-// 						strerror(errno));
-// 		goto Exit;		
-// 	}
-// 
-// 	// Get the folder at destination path
-// 	Node_File * cur_dir = getFile(rd, dst);
-// 	if(!cur_dir) {
-// 		return -1;
-// 	}
-// 	
-// 	// Check if the destination path is a folder or a file. We expect a folder.
-// 	if((cur_dir->fileHdr.flags & F_DIR_MASK) != F_DIR)
-// 	{
-// 		// We were looking for a folder
-// 		fprintf(stderr,"ramdiskAddFile: The path '%s' is not a folder\n", dst);
-// 		return -1;
-// 	}
-// 	
-// 	// Create a new file node for the new file
-// 	Node_File * newFile = (Node_File *) malloc(sizeof(Node_File));
-// 	
-// 	memset(newFile, 0, sizeof(Node_File));
-// 	
-// 	strncpy(newFile->fileHdr.fileName, extractFileName(filename), MAX_FILE_NAME_SIZE);
-// 	newFile->fileHdr.flags = F_FILE | (stat_buf.st_mode & 0x777);
-// 	newFile->fileHdr.length = stat_buf.st_size;
-// 	
-// 	// Add the file to the folder
-// 	newFile->parent = cur_dir;
-// 	if(cur_dir->child) {
-// 		newFile->next = cur_dir->child;
-// 		cur_dir->next = newFile;
-// 	}
-// 	else {
-// 		cur_dir->child = newFile;
-// 	}
-// 	cur_dir->fileHdr.fileCount++;
-// 	status = 0;
-// 	
-// Exit:
-// 
-// 	if(addfile >= 0) {
-// 		close(addfile);
-// 		addfile = 0;
-// 	}		
-// 	
-// 	return status;
-}
+	int status = -1;
 
+	if(!rd || !dst || !foldername)
+	{
+		fprintf(stderr,"ramdiskAddFolder: Argument error\n");
+		return -1;	
+	}
+	if(!rd->root)
+	{
+		fprintf(stderr,"ramdiskAddFolder: Root file system is not mounted\n");
+		return -1;	
+	}
+	
+	// Get the folder at destination path
+	Node_File * cur_dir = getFile(rd, dst);
+	if(!cur_dir) {
+		return -1;
+	}
+	
+	// Check if the destination path is a folder or a file. We expect a folder.
+	if((cur_dir->fileHdr.flags & F_DIR_MASK) != F_DIR)
+	{
+		// We were looking for a folder
+		fprintf(stderr,"ramdiskAddFolder: The path '%s' is not a folder\n", dst);
+		return -1;
+	}
+	
+	// Create a new file node for the new folder
+	Node_File * newFile = (Node_File *) malloc(sizeof(Node_File));
+	
+	memset(newFile, 0, sizeof(Node_File));
+	
+	strncpy(newFile->fileHdr.fileName, foldername, MAX_FILE_NAME_SIZE);
+	newFile->fileHdr.flags = F_DIR | (S_IRUSR | S_IWUSR | S_IXUSR) | S_IRGRP | S_IROTH;
+	newFile->fileHdr.fileCount = 0;
+	
+	// Add the new folder to the ramdisk
+	newFile->parent = cur_dir;
+	if(cur_dir->child) {
+		newFile->next = cur_dir->child;
+		cur_dir->next = newFile;
+	}
+	else {
+		cur_dir->child = newFile;
+	}
+	cur_dir->fileHdr.fileCount++;
+	status = 0;
+
+	return status;
+}
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Main function
