@@ -516,13 +516,15 @@ Node_File * getFile(Node_Ramdisk *rd, const char * path)
 // Functions to add files / folders to ramdisk
 // dst: is the destination path
 //////////////////////////////////////////////////////////////////////////////////////////
-int ramdiskAddFile(Node_Ramdisk *rd, const char * dst, const char * filename)
+int ramdiskAddFile(Node_Ramdisk *rd, const char * dst, const char * filepath)
 {
 	int addfile = -1;
 	struct stat stat_buf;
 	int status = -1;
+	const char * filename = NULL;
+	
 
-	if(!rd || !dst || !filename)
+	if(!rd || !dst || !filepath)
 	{
 		fprintf(stderr,"ramdiskAddFile: Argument error\n");
 		return -1;	
@@ -534,15 +536,15 @@ int ramdiskAddFile(Node_Ramdisk *rd, const char * dst, const char * filename)
 	}
 	
 	// Add the new file to ramdisk
-	if((addfile = open(filename,O_RDONLY)) < 0) {
+	if((addfile = open(filepath,O_RDONLY)) < 0) {
 		fprintf(stderr,"open(\"%s\",O_RDONLY): %s\n",
-						filename,
+						filepath,
 						strerror(errno));
 		status = addfile;
 		goto Exit;
 	}
 
-	if((status = stat(filename, &stat_buf)) < 0)
+	if((status = stat(filepath, &stat_buf)) < 0)
 	{
 		fprintf(stderr,"stat(\"%s\"): %s\n",
 						filename,
@@ -564,12 +566,26 @@ int ramdiskAddFile(Node_Ramdisk *rd, const char * dst, const char * filename)
 		return -1;
 	}
 	
+	// Extract the file name
+	filename = extractFileName(filename);
+	
+	// Now we need to validate that a node with this name does not exist already
+	Node_File *child = cur_dir->child;
+	while(child) {
+		if(!strcmp(child->fileHdr.fileName, filename)) {
+			fprintf(stderr,"ERROR: File/Folder '%s' already exists\n", extractFileName(filename));
+			status = -1;
+			goto Exit;
+		}
+		child = child->next;
+	}
+
 	// Create a new file node for the new file
 	Node_File * newFile = (Node_File *) malloc(sizeof(Node_File));
 	
 	memset(newFile, 0, sizeof(Node_File));
 	
-	strncpy(newFile->fileHdr.fileName, extractFileName(filename), MAX_FILE_NAME_SIZE);
+	strncpy(newFile->fileHdr.fileName, filename, MAX_FILE_NAME_SIZE);
 	newFile->fileHdr.flags = F_FILE | (stat_buf.st_mode & 0x777);
 	newFile->fileHdr.length = stat_buf.st_size;
 	
@@ -624,6 +640,17 @@ int ramdiskAddFolder(Node_Ramdisk *rd, const char * dst, const char * foldername
 		return -1;
 	}
 	
+	// Now we need to validate that a node with this name does not exist already
+	Node_File *child = cur_dir->child;
+	while(child) {
+		if(!strcmp(child->fileHdr.fileName, foldername)) {
+			fprintf(stderr,"ERROR: File/Folder '%s' already exists\n", foldername);
+			status = -1;
+			goto Exit;
+		}
+		child = child->next;
+	}
+	
 	// Create a new file node for the new folder
 	Node_File * newFile = (Node_File *) malloc(sizeof(Node_File));
 	
@@ -644,7 +671,8 @@ int ramdiskAddFolder(Node_Ramdisk *rd, const char * dst, const char * foldername
 	}
 	cur_dir->fileHdr.fileCount++;
 	status = 0;
-
+	
+Exit:
 	return status;
 }
 
