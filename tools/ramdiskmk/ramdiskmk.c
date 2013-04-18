@@ -390,7 +390,7 @@ int freeRamdisk()
 
 // Function to extract the base name given the path
 // Returns the number of characters consumed
-int getBaseName(char * dst, const char * path)
+int getToken(char * dst, const char * path)
 {
 	int i = 0;
 	int j = 0;
@@ -477,7 +477,7 @@ Node_File * getFile(Node_Ramdisk *rd, const char * path)
 	// Start parsing the path
 	while(cur_dir)
 	{
-		i = getBaseName(name, &path[i]);
+		i += getToken(name, &path[i]);
 		if(i < 0) {
 			// There was an error
 			break;
@@ -512,109 +512,83 @@ Node_File * getFile(Node_Ramdisk *rd, const char * path)
 	return (found ? cur_dir : NULL);
 }
 
-//////////////////////////////////////////////////////////////////////////////////////////
-// Functions to add files / folders to ramdisk
-// dst: is the destination path
-//////////////////////////////////////////////////////////////////////////////////////////
-int ramdiskAddFile(Node_Ramdisk *rd, const char * dst, const char * filepath)
+// Searches for a file/folder within the current directoty
+Node_File * searchFile(Node_File * pwd, const char * filename)
 {
-	int addfile = -1;
-	struct stat stat_buf;
-	int status = -1;
-	const char * filename = NULL;
-	
-
-	if(!rd || !dst || !filepath)
+	if(!pwd || !filename)
 	{
-		fprintf(stderr,"ramdiskAddFile: Argument error\n");
-		return -1;	
-	}
-	if(!rd->root)
-	{
-		fprintf(stderr,"ramdiskAddFile: Root file system is not mounted\n");
-		return -1;	
+		fprintf(stderr,"searchFile: Argument error\n");
+		return NULL;	
 	}
 	
-	// Add the new file to ramdisk
-	if((addfile = open(filepath,O_RDONLY)) < 0) {
-		fprintf(stderr,"open(\"%s\",O_RDONLY): %s\n",
-						filepath,
-						strerror(errno));
-		status = addfile;
-		goto Exit;
-	}
-
-	if((status = stat(filepath, &stat_buf)) < 0)
-	{
-		fprintf(stderr,"stat(\"%s\"): %s\n",
-						filename,
-						strerror(errno));
-		goto Exit;		
-	}
-
-	// Get the folder at destination path
-	Node_File * cur_dir = getFile(rd, dst);
-	if(!cur_dir) {
-		return -1;
-	}
-	
-	// Check if the destination path is a folder or a file. We expect a folder.
-	if((cur_dir->fileHdr.flags & F_DIR_MASK) != F_DIR)
+	// Check if the pwd is a folder or a file. We expect a folder.
+	if((pwd->fileHdr.flags & F_DIR_MASK) != F_DIR)
 	{
 		// We were looking for a folder
-		fprintf(stderr,"ramdiskAddFile: The path '%s' is not a folder\n", dst);
-		return -1;
+		fprintf(stderr,"searchFile: The pwd (%s) is not a folder\n", pwd->fileHdr.fileName);
+		return NULL;
 	}
-	
-	// Extract the file name
-	filename = extractFileName(filename);
-	
+
 	// Now we need to validate that a node with this name does not exist already
-	Node_File *child = cur_dir->child;
+	Node_File *child = pwd->child;
 	while(child) {
 		if(!strcmp(child->fileHdr.fileName, filename)) {
-			fprintf(stderr,"ERROR: File/Folder '%s' already exists\n", extractFileName(filename));
-			status = -1;
-			goto Exit;
+			break;
 		}
 		child = child->next;
 	}
+	
+	return child;		
+}
 
-	// Create a new file node for the new file
+Node_File * ramdiskAddFolderToParent(Node_Ramdisk *rd, Node_File * parent, const char * foldername)
+{
+	if(!rd || !parent || !foldername)
+	{
+		fprintf(stderr,"ramdiskAddFolderToParent: Argument error\n");
+		return NULL;	
+	}
+	if(!rd->root)
+	{
+		fprintf(stderr,"ramdiskAddFolderToParent: Root file system is not mounted\n");
+		return NULL;	
+	}
+	
+	// Now we need to validate that a node with this name does not exist already
+	Node_File *child = parent->child;
+	while(child) {
+		if(!strcmp(child->fileHdr.fileName, foldername)) {
+			fprintf(stderr,"ERROR: File/Folder '%s' already exists\n", foldername);
+			return NULL;
+		}
+		child = child->next;
+	}
+		
+	// Create a new file node for the new folder
 	Node_File * newFile = (Node_File *) malloc(sizeof(Node_File));
 	
 	memset(newFile, 0, sizeof(Node_File));
 	
-	strncpy(newFile->fileHdr.fileName, filename, MAX_FILE_NAME_SIZE);
-	newFile->fileHdr.flags = F_FILE | (stat_buf.st_mode & 0x777);
-	newFile->fileHdr.length = stat_buf.st_size;
+	strncpy(newFile->fileHdr.fileName, foldername, MAX_FILE_NAME_SIZE);
+	newFile->fileHdr.flags = F_DIR | (S_IRUSR | S_IWUSR | S_IXUSR) | S_IRGRP | S_IROTH;
+	newFile->fileHdr.fileCount = 0;
 	
-	// Add the file to the folder
-	newFile->parent = cur_dir;
-	if(cur_dir->child) {
-		newFile->next = cur_dir->child;
-		cur_dir->next = newFile;
+	// Add the new folder to the ramdisk
+	newFile->parent = parent;
+	if(parent->child) {
+		newFile->next = parent->child;
+		parent->next = newFile;
 	}
 	else {
-		cur_dir->child = newFile;
+		parent->child = newFile;
 	}
-	cur_dir->fileHdr.fileCount++;
-	status = 0;
+	parent->fileHdr.fileCount++;
 	
-Exit:
-
-	if(addfile >= 0) {
-		close(addfile);
-		addfile = 0;
-	}		
-	
-	return status;
+	return newFile;
 }
 
 int ramdiskAddFolder(Node_Ramdisk *rd, const char * dst, const char * foldername)
 {
-	int status = -1;
-
 	if(!rd || !dst || !foldername)
 	{
 		fprintf(stderr,"ramdiskAddFolder: Argument error\n");
@@ -640,27 +614,123 @@ int ramdiskAddFolder(Node_Ramdisk *rd, const char * dst, const char * foldername
 		return -1;
 	}
 	
-	// Now we need to validate that a node with this name does not exist already
-	Node_File *child = cur_dir->child;
-	while(child) {
-		if(!strcmp(child->fileHdr.fileName, foldername)) {
-			fprintf(stderr,"ERROR: File/Folder '%s' already exists\n", foldername);
+	if(!ramdiskAddFolderToParent(rd, cur_dir, foldername))
+	{
+		return -1;
+	}
+
+	return 0;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Functions to add files / folders to ramdisk
+// dst: is the destination path
+//////////////////////////////////////////////////////////////////////////////////////////
+int ramdiskAddFile(Node_Ramdisk *rd, const char * filepath)
+{
+	int addfile = -1;
+	struct stat stat_buf;
+	int status = -1;
+	char name[MAX_FILE_NAME_SIZE];
+
+	if(!rd || !filepath)
+	{
+		fprintf(stderr,"ramdiskAddFile: Argument error\n");
+		return -1;	
+	}
+	if(!rd->root)
+	{
+		fprintf(stderr,"ramdiskAddFile: Root file system is not mounted\n");
+		return -1;	
+	}
+	
+	// Add the new file to ramdisk
+	if((addfile = open(filepath,O_RDONLY)) < 0) {
+		fprintf(stderr,"open(\"%s\",O_RDONLY): %s\n",
+						filepath,
+						strerror(errno));
+		status = addfile;
+		goto Exit;
+	}
+
+	if((status = stat(filepath, &stat_buf)) < 0)
+	{
+		fprintf(stderr,"stat(\"%s\"): %s\n",
+						filepath,
+						strerror(errno));
+		goto Exit;		
+	}
+
+	// Now scan through each folder in the filepath and create folders if it does not already exist
+	// Start searching from the root folder
+	int i = 0;
+	Node_File * cur_dir = rd->root;
+
+	// Start parsing the path
+	while(cur_dir)
+	{
+		i += getToken(name, &filepath[i]);
+		if(i < 0) {
+			// Error Occurred
 			status = -1;
 			goto Exit;
 		}
-		child = child->next;
+		else if(i == 0) {
+			fprintf(stderr,"ERROR: Parsing '%s'\n",	filepath);
+			status = -1;
+			goto Exit;
+		}
+
+		// Check if this is the last token (file name) or not
+		if(filepath[i] == '\x0') {
+			break;
+		}
+		
+		// Get the folder corresponding to this token
+		Node_File * next_dir = searchFile(cur_dir, name);
+		
+		// If the next_dir is NULL, then the folder does not exist. We can create a folder with 
+		// the token name
+		if(!next_dir) {
+			next_dir = ramdiskAddFolderToParent(rd, cur_dir, name);
+		}
+		
+		cur_dir = next_dir;
 	}
 	
-	// Create a new file node for the new folder
+	if(!cur_dir) {
+		fprintf(stderr,"ERROR: Could not create all folders in the path '%s'\n", filepath);
+		status = -1;
+		goto Exit;	
+	}
+	
+	// Check if the destination path is a folder or a file. We expect a folder.
+	if((cur_dir->fileHdr.flags & F_DIR_MASK) != F_DIR)
+	{
+		// We were looking for a folder
+		fprintf(stderr,"ramdiskAddFile: The path '%s' is not a folder\n", cur_dir->fileHdr.fileName);
+		status = -1;
+		goto Exit;
+	}
+	
+	// Now we need to validate that a node with this name does not exist already
+	if(!searchFile(cur_dir, name))
+	{
+		fprintf(stderr,"ERROR: File/Folder '%s' already exists in '%s'\n", name, cur_dir->fileHdr.fileName);
+		status = -1;
+		goto Exit;
+	}
+	
+	// Create a new file node for the new file
 	Node_File * newFile = (Node_File *) malloc(sizeof(Node_File));
 	
 	memset(newFile, 0, sizeof(Node_File));
 	
-	strncpy(newFile->fileHdr.fileName, foldername, MAX_FILE_NAME_SIZE);
-	newFile->fileHdr.flags = F_DIR | (S_IRUSR | S_IWUSR | S_IXUSR) | S_IRGRP | S_IROTH;
-	newFile->fileHdr.fileCount = 0;
+	strncpy(newFile->fileHdr.fileName, name, MAX_FILE_NAME_SIZE);
+	newFile->fileHdr.flags = F_FILE | (stat_buf.st_mode & 0x777);
+	newFile->fileHdr.length = stat_buf.st_size;
 	
-	// Add the new folder to the ramdisk
+	// Add the file to the folder
 	newFile->parent = cur_dir;
 	if(cur_dir->child) {
 		newFile->next = cur_dir->child;
@@ -673,6 +743,12 @@ int ramdiskAddFolder(Node_Ramdisk *rd, const char * dst, const char * foldername
 	status = 0;
 	
 Exit:
+
+	if(addfile >= 0) {
+		close(addfile);
+		addfile = 0;
+	}		
+	
 	return status;
 }
 
@@ -735,7 +811,7 @@ int main( int argc, char *argv[] )
 		}
 	}
 	
-	if((status = ramdiskAddFile(&ramdisk, "/", argv[2])) < 0)
+	if((status = ramdiskAddFile(&ramdisk, argv[2])) < 0)
 	{
 		goto Exit;
 	}
