@@ -27,12 +27,30 @@
 
 Node_Ramdisk ramdisk;
 
+typedef enum {
+	CMD_INVALID,
+	CMD_ADD_FILE,
+	CMD_DELETE_FILE,
+	CMD_ADD_FOLDER,
+	CMD_PRINT,
+	CMD_SAVE,
+	CMD_SAVE_AND_QUIT,
+	CMD_QUIT
+	
+} User_command;
+
+
+User_command getUserOption(void);
 int makeRamdiskNode(int rdfile, Node_Ramdisk *rd);
 int ramdiskWriteFile(int rdfile, Node_Ramdisk *rd);
 int readRamdiskHdr(int rdfile, FS_RamdiskHdr *rd);
 int readFileData(int rdfile, off_t off, size_t size, char *buf);
 int readFileHeader(int rdfile, off_t off, FS_FileHdr *fileHdr);
 int fixFileOffsets(Node_File *file, int * offset);
+void handleUserCommand(User_command cmd);
+
+static int dirty = FALSE;
+char * rdFileName = NULL;
 
 //////////////////////////////////////////////////////////////////////////////////////////
 // Functions to read the Ramdisk file
@@ -760,8 +778,8 @@ int main( int argc, char *argv[] )
 	int rdfile = -1;
 	int status = 0;
 	
-	if(argc != 3) {
-		fprintf(stderr,"\nSYNTAX:\n%s <ramdisk file> <new file>\n",argv[0]);
+	if(argc < 2) {
+		fprintf(stderr,"\nSYNTAX:\n%s <ramdisk file> [new file to be added]\n",argv[0]);
 		fprintf(stderr,"\n \
 			This tool creates a ramdisk image and adds a new file to the ramdisk \
 			If the ramdisk file already exists, then it just appends a new file to te ramdisk. \
@@ -770,9 +788,10 @@ int main( int argc, char *argv[] )
 	}
 	
 	// Open input files
-	if((rdfile = open(argv[1],O_RDONLY)) < 0) {
+	rdFileName = argv[1];
+	if((rdfile = open(rdFileName,O_RDONLY)) < 0) {
 		fprintf(stderr,"open(\"%s\",O_RDONLY): %s\n",
-						argv[1],
+						rdFileName,
 						strerror(errno));
 		status = rdfile;
 		goto Exit;
@@ -811,15 +830,29 @@ int main( int argc, char *argv[] )
 		}
 	}
 	
+	if(argc == 2) 
+	{
+		User_command cmd;
+		do 
+		{
+			cmd = getUserOption();
+			handleUserCommand(cmd);
+		}
+		while((cmd != CMD_QUIT) && (cmd != CMD_SAVE_AND_QUIT));
+		
+		status = 0;
+		goto Exit;
+	}
+	
 	if((status = ramdiskAddFile(&ramdisk, argv[2])) < 0)
 	{
 		goto Exit;
 	}
 
 	// Open ramdisk file for output
-	if((rdfile = open(argv[1],O_WRONLY)) < 0) {
+	if((rdfile = open(rdFileName,O_WRONLY)) < 0) {
 		fprintf(stderr,"open(\"%s\",O_WRONLY): %s\n",
-						argv[1],
+						rdFileName,
 						strerror(errno));
 		status = rdfile;
 		goto Exit;
@@ -840,4 +873,94 @@ Exit:
 	freeRamdisk();
 
 	return status;
+}
+
+void handleUserCommand(User_command cmd)
+{
+	switch(cmd)
+	{
+		case CMD_ADD_FILE:
+			
+			break;
+		case CMD_DELETE_FILE:
+			break;
+		case CMD_ADD_FOLDER:
+			break;
+		case CMD_PRINT:
+			break;
+		case CMD_SAVE:
+			break;
+		case CMD_SAVE_AND_QUIT:
+			break;
+		case CMD_QUIT:
+		default:
+			break;
+	}
+}
+
+User_command getUserOption(void)
+{
+	User_command choice = CMD_INVALID;
+	
+	do
+	{
+		printf("Choose one of the following options:\n");
+		printf("a: Add file\n");
+		printf("d: delete file or folder\n");
+		printf("f: Add folder\n");
+		printf("p: print ramdisk\n");
+		printf("s: save ramdisk\n");
+		printf("q: quit\n");
+		printf("Please make input your choice: ");
+		char ch = getchar();
+	
+		switch(ch)
+		{
+			case 'a':
+				choice = CMD_ADD_FILE;				
+				break;
+			case 'd':
+				choice = CMD_DELETE_FILE;
+				break;		
+			case 'f':
+				choice = CMD_ADD_FOLDER;
+				break;		
+			case 'p':
+				choice = CMD_PRINT;
+				break;
+			case 's':
+				choice = CMD_SAVE;
+				break;
+			case 'q':
+				if(dirty) 
+				{
+					printf("There are unsaved changes. Do you want to save? [Y/n]");
+					ch = getchar();
+					if(ch == 'n' || ch == 'N')
+					{
+						choice = CMD_QUIT;
+					}
+					else if(ch == 'y' || ch == 'Y' || ch == '\n')
+					{
+						choice = CMD_SAVE_AND_QUIT;
+					}
+					else
+					{
+						fprintf(stderr,"Invalid choice '%c'. ", ch);
+						break;
+					}
+				}				
+				else
+				{
+					choice = CMD_QUIT;
+				}
+				break;		
+			default:
+				fprintf(stderr,"Invalid choice '%c'. ", ch);
+				break;
+		}
+	}
+	while(choice == CMD_INVALID);
+	
+	return choice;
 }
