@@ -58,14 +58,14 @@ int writeElfProgram(int elf, Elf32_Program *out);
 #define	PF_W		0x2
 #define	PF_X		0x1
 
-char phFpags [][4] = { 	"   ",
-						"  X",
-						" W ",
-						" WX",
-						"R  ",
-						"R X",
-						"RW ",
-						"RWX" };
+char phFpags [][4] = { 	"---",
+						"--x",
+						"-w-",
+						"-wx",
+						"r--",
+						"r-x",
+						"rw-",
+						"rwx" };
 
 int writeElfProgram(int elf, Elf32_Program *out)
 {

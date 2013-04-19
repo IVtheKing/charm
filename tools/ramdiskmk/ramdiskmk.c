@@ -39,6 +39,16 @@ typedef enum {
 	
 } User_command;
 
+char fileAccessFlags [][4] = { 	
+						"---",
+						"--x",
+						"-w-",
+						"-wx",
+						"r--",
+						"r-x",
+						"rw-",
+						"rwx" };
+
 
 User_command getUserOption(void);
 int makeRamdiskNode(int rdfile, Node_Ramdisk *rd);
@@ -271,6 +281,31 @@ Error:
 //////////////////////////////////////////////////////////////////////////////////////////
 // Functions to write back the Ramdisk file
 //////////////////////////////////////////////////////////////////////////////////////////
+int saveRamdisk(Node_Ramdisk *rd, const char * rdFileName)
+{
+	int status;
+	int rdfile;
+	
+	// Open ramdisk file for output
+	if((rdfile = open(rdFileName,O_WRONLY)) < 0) {
+		fprintf(stderr,"open(\"%s\",O_WRONLY): %s\n",
+						rdFileName,
+						strerror(errno));
+		status = rdfile;
+		goto Exit;
+	}
+	
+	status = ramdiskWriteFile(rdfile, &ramdisk);
+	
+Exit:
+	if(rdfile >= 0) {
+		close(rdfile);
+		rdfile = 0;
+	}
+	
+	return status;
+}
+
 int writeFileNode(int rdfile, Node_File *file)
 {
 	if(!file)
@@ -543,7 +578,7 @@ Node_File * searchFile(Node_File * pwd, const char * filename)
 	if((pwd->fileHdr.flags & F_DIR_MASK) != F_DIR)
 	{
 		// We were looking for a folder
-		fprintf(stderr,"searchFile: The pwd (%s) is not a folder\n", pwd->fileHdr.fileName);
+		fprintf(stderr,"searchFile: '%s' is not a folder\n", pwd->fileHdr.fileName);
 		return NULL;
 	}
 
@@ -605,9 +640,11 @@ Node_File * ramdiskAddFolderToParent(Node_Ramdisk *rd, Node_File * parent, const
 	return newFile;
 }
 
-int ramdiskAddFolder(Node_Ramdisk *rd, const char * dst, const char * foldername)
+int ramdiskAddFolder(Node_Ramdisk *rd, const char * folderpath)
 {
-	if(!rd || !dst || !foldername)
+	char name[MAX_FILE_NAME_SIZE];
+	
+	if(!rd || !folderpath)
 	{
 		fprintf(stderr,"ramdiskAddFolder: Argument error\n");
 		return -1;	
@@ -618,9 +655,42 @@ int ramdiskAddFolder(Node_Ramdisk *rd, const char * dst, const char * foldername
 		return -1;	
 	}
 	
-	// Get the folder at destination path
-	Node_File * cur_dir = getFile(rd, dst);
+	// Now scan through each folder in the folderpath and create folders if it does not already exist
+	// Start searching from the root folder
+	int i = 0;
+	Node_File * cur_dir = rd->root;
+
+	// Start parsing the path
+	while(cur_dir)
+	{
+		i += getToken(name, &folderpath[i]);
+		if(i < 0) {
+			return -1;	// Error Occurred
+		}
+		else if(i == 0) {
+			fprintf(stderr,"ERROR: Parsing '%s'\n",	folderpath);
+			return -1;
+		}
+
+		// Check if this is the last token or not
+		if(folderpath[i] == '\x0') {
+			break;
+		}
+		
+		// Get the folder corresponding to this token
+		Node_File * next_dir = searchFile(cur_dir, name);
+		
+		// If the next_dir is NULL, then the folder does not exist. 
+		// We can create a folder with the token name
+		if(!next_dir) {
+			next_dir = ramdiskAddFolderToParent(rd, cur_dir, name);
+		}
+		
+		cur_dir = next_dir;
+	}
+	
 	if(!cur_dir) {
+		fprintf(stderr,"ERROR: Could not create all folders in the path '%s'\n", folderpath);
 		return -1;
 	}
 	
@@ -628,15 +698,15 @@ int ramdiskAddFolder(Node_Ramdisk *rd, const char * dst, const char * foldername
 	if((cur_dir->fileHdr.flags & F_DIR_MASK) != F_DIR)
 	{
 		// We were looking for a folder
-		fprintf(stderr,"ramdiskAddFolder: The path '%s' is not a folder\n", dst);
+		fprintf(stderr,"ramdiskAddFolder: The path '%s' is not a folder\n", folderpath);
 		return -1;
 	}
 	
-	if(!ramdiskAddFolderToParent(rd, cur_dir, foldername))
+	if(!ramdiskAddFolderToParent(rd, cur_dir, folderpath))
 	{
 		return -1;
 	}
-
+	
 	return 0;
 }
 
@@ -771,6 +841,46 @@ Exit:
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
+// Functions to print ramdisk
+//////////////////////////////////////////////////////////////////////////////////////////
+void printFileName(Node_File * file, int depth)
+{
+	if(!file) return;
+	
+	// First create proper indentation for the file / folder name
+	printf("\n");
+	for(int i = 0; i < depth; i++)
+	{
+		printf("   ");
+	}
+
+	// First print file permissions
+	printf("%s%s%s ", fileAccessFlags[file->fileHdr.flags & 7],
+					  fileAccessFlags[(file->fileHdr.flags >> 4) & 7],
+					  fileAccessFlags[(file->fileHdr.flags >> 8) & 7]);
+
+	if((file->fileHdr.flags & F_DIR_MASK) == F_DIR)
+	{
+		// Print folder name and the number of files in the folder
+		printf("%s [%d]", file->fileHdr.fileName, file->fileHdr.fileCount);
+
+		// Now we need to print each child node
+		Node_File *child = file->child;
+		while(child) {
+			printFileName(child, depth+1);
+			child = child->next;
+		}
+	}
+	else		
+	{
+		// Print file name
+		printf("%s", file->fileHdr.fileName);
+	}
+	
+}
+
+
+//////////////////////////////////////////////////////////////////////////////////////////
 // Main function
 //////////////////////////////////////////////////////////////////////////////////////////
 int main( int argc, char *argv[] ) 
@@ -877,22 +987,32 @@ Exit:
 
 void handleUserCommand(User_command cmd)
 {
+	char str[100];
+	 
 	switch(cmd)
 	{
 		case CMD_ADD_FILE:
-			
+			scanf("Please input the relative path of the file: %s\n", str);
+			ramdiskAddFile(&ramdisk, str);
 			break;
 		case CMD_DELETE_FILE:
+			scanf("Not Implemented\n");
 			break;
 		case CMD_ADD_FOLDER:
+			scanf("Please input relative path of the new folder: %s\n", str);
+			ramdiskAddFolder(&ramdisk, str);
 			break;
 		case CMD_PRINT:
+			printFileName(ramdisk.root, 0);
 			break;
 		case CMD_SAVE:
+			saveRamdisk(&ramdisk, rdFileName);
 			break;
 		case CMD_SAVE_AND_QUIT:
-			break;
+			saveRamdisk(&ramdisk, rdFileName);
+			// Fall through
 		case CMD_QUIT:
+			break;
 		default:
 			break;
 	}
