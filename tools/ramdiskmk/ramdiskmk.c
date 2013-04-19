@@ -890,22 +890,15 @@ int main( int argc, char *argv[] )
 	
 	if(argc < 2) {
 		fprintf(stderr,"\nSYNTAX:\n%s <ramdisk file> [new file to be added]\n",argv[0]);
-		fprintf(stderr,"\n \
-			This tool creates a ramdisk image and adds a new file to the ramdisk \
-			If the ramdisk file already exists, then it just appends a new file to te ramdisk. \
-			Otherwise it creates a ramdisk file containing the file to be added. \n\n");
+		fprintf(stderr,"\nThis tool creates a ramdisk image and adds a new file to the ramdisk");
+        fprintf(stderr,"\nIf the ramdisk file already exists, then it just appends a new file to the ramdisk.");
+        fprintf(stderr,"\nOtherwise it creates a ramdisk file containing the file to be added. \n\n");
 		return -1;
 	}
 	
 	// Open input files
 	rdFileName = argv[1];
-	if((rdfile = open(rdFileName,O_RDONLY)) < 0) {
-		fprintf(stderr,"open(\"%s\",O_RDONLY): %s\n",
-						rdFileName,
-						strerror(errno));
-		status = rdfile;
-		goto Exit;
-	}
+	rdfile = open(rdFileName,O_RDONLY);
 
 	//////////////////////////////////////////////////////////////////////////////////////
 	// Process the first file
