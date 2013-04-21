@@ -134,7 +134,7 @@ Node_File * readFileNode(int rdfile, int offset, Node_File *parent)
 		fprintf(stderr,"malloc(%ld): %s\n", sizeof(Node_File), strerror(errno));
 	}
 		
-	// Clear the Elf32_Segment
+	// Clear the Node_File
 	memset(file, 0, sizeof(Node_File));
 		
 	// Attach the file to the parent
@@ -146,7 +146,7 @@ Node_File * readFileNode(int rdfile, int offset, Node_File *parent)
 		}
 		
 		parent->child = file;
-		file->parent = parent;					
+		file->parent = parent;
 	}
 	
 	if(readFileHeader(rdfile, offset, &file->fileHdr) < 0 ) {
@@ -164,14 +164,7 @@ Node_File * readFileNode(int rdfile, int offset, Node_File *parent)
 				fprintf(stderr,"ERROR: Error while reading folder - %s\n", file->fileHdr.fileName);
 				break;
 			}
-			
-			if(file->child) 
-			{
-				child->next = file->child;
-			}
-			
-			file->child = child;
-		}
+        }
 	}
 	else if(file->fileHdr.length > 0)
 	{
@@ -287,10 +280,11 @@ int saveRamdisk(Node_Ramdisk *rd, const char * rdFileName)
 	int rdfile;
 	
 	// Open ramdisk file for output
-	if((rdfile = open(rdFileName,O_WRONLY)) < 0) {
-		fprintf(stderr,"open(\"%s\",O_WRONLY): %s\n",
-						rdFileName,
-						strerror(errno));
+    if((rdfile = open(rdFileName,O_WRONLY|O_CREAT|O_TRUNC, 0644)) < 0 ) {
+        fprintf(stderr,"open(\"%s\",O_WRONLY|O_CREAT): %s\n",
+                rdFileName,
+                strerror(errno));
+
 		status = rdfile;
 		goto Exit;
 	}
@@ -354,7 +348,7 @@ int writeFileNode(int rdfile, Node_File *file)
 
 int ramdiskWriteFile(int rdfile, Node_Ramdisk *rd)
 {
-	int offset = sizeof(FS_RamdiskHdr);
+	int offset = sizeof(FS_RamdiskHdr) + sizeof(FS_FileHdr);    // Ramdisk Header + Root file header
 	
 	if(!rd) 
 	{
@@ -384,7 +378,14 @@ int ramdiskWriteFile(int rdfile, Node_Ramdisk *rd)
 		return -1;
 	}
 	
-	// Write root folder
+    // Write file header for the root node itself
+    if(write(rdfile, &rd->root->fileHdr , sizeof(FS_FileHdr)) < 0)
+    {
+        fprintf(stderr,"EROOR: file write error - %s\n", strerror(errno));
+        return -1;
+    }
+    
+	// Write contents of the root folder
 	return (writeFileNode(rdfile, rd->root));
 }
 
@@ -630,11 +631,8 @@ Node_File * ramdiskAddFolderToParent(Node_Ramdisk *rd, Node_File * parent, const
 	newFile->parent = parent;
 	if(parent->child) {
 		newFile->next = parent->child;
-		parent->next = newFile;
-	}
-	else {
-		parent->child = newFile;
-	}
+    }
+    parent->child = newFile;
 	parent->fileHdr.fileCount++;
 	
 	return newFile;
@@ -702,7 +700,7 @@ int ramdiskAddFolder(Node_Ramdisk *rd, const char * folderpath)
 		return -1;
 	}
 	
-	if(!ramdiskAddFolderToParent(rd, cur_dir, folderpath))
+	if(!ramdiskAddFolderToParent(rd, cur_dir, name))
 	{
 		return -1;
 	}
@@ -816,7 +814,7 @@ int ramdiskAddFile(Node_Ramdisk *rd, const char * filepath)
 	
 	strncpy(newFile->fileHdr.fileName, name, MAX_FILE_NAME_SIZE);
 	newFile->fileHdr.flags = F_FILE | (stat_buf.st_mode & 0x777);
-	newFile->fileHdr.length = stat_buf.st_size;
+	newFile->fileHdr.length = (UINT32)stat_buf.st_size;
 	
 	// Add the file to the folder
 	newFile->parent = cur_dir;
@@ -871,7 +869,7 @@ void printFileName(Node_File * file, int depth)
 			child = child->next;
 		}
 	}
-	else		
+	else
 	{
 		// Print file name
 		printf("%s", file->fileHdr.fileName);
@@ -914,7 +912,7 @@ int main( int argc, char *argv[] )
 		
 		// Add a root folder
 		ramdisk.root = (Node_File *) malloc(sizeof(Node_File));
-		memset(&ramdisk.root, 0, sizeof(Node_File));
+		memset(ramdisk.root, 0, sizeof(Node_File));
 		
 		strcpy(ramdisk.root->fileHdr.fileName, "/");
 		ramdisk.root->fileHdr.flags = F_DIR | (S_IRUSR | S_IWUSR | S_IXUSR) | S_IRGRP | S_IROTH;
@@ -986,23 +984,33 @@ void handleUserCommand(User_command cmd)
 	{
 		case CMD_ADD_FILE:
 			scanf("Please input the relative path of the file: %s\n", str);
-			ramdiskAddFile(&ramdisk, str);
+			if(ramdiskAddFile(&ramdisk, str) == 0) {
+                dirty = TRUE;
+            }
 			break;
 		case CMD_DELETE_FILE:
 			scanf("Not Implemented\n");
 			break;
 		case CMD_ADD_FOLDER:
-			scanf("Please input relative path of the new folder: %s\n", str);
-			ramdiskAddFolder(&ramdisk, str);
+            printf("Please input relative path of the new folder: ");
+			scanf("%s", str);
+			if(ramdiskAddFolder(&ramdisk, str) == 0) {
+                dirty = TRUE;
+            }
 			break;
 		case CMD_PRINT:
 			printFileName(ramdisk.root, 0);
+            printf("\n");
 			break;
 		case CMD_SAVE:
-			saveRamdisk(&ramdisk, rdFileName);
+			if(saveRamdisk(&ramdisk, rdFileName) == 0) {
+                dirty = FALSE;
+            }
 			break;
 		case CMD_SAVE_AND_QUIT:
-			saveRamdisk(&ramdisk, rdFileName);
+			if(saveRamdisk(&ramdisk, rdFileName) == 0) {
+                dirty = FALSE;
+            }
 			// Fall through
 		case CMD_QUIT:
 			break;
@@ -1014,10 +1022,11 @@ void handleUserCommand(User_command cmd)
 User_command getUserOption(void)
 {
 	User_command choice = CMD_INVALID;
+    char ch;
 	
 	do
 	{
-		printf("Choose one of the following options:\n");
+		printf("\nChoose one of the following options:\n");
 		printf("a: Add file\n");
 		printf("d: delete file or folder\n");
 		printf("f: Add folder\n");
@@ -1025,8 +1034,9 @@ User_command getUserOption(void)
 		printf("s: save ramdisk\n");
 		printf("q: quit\n");
 		printf("Please make input your choice: ");
-		char ch = getchar();
-	
+
+        while ((ch = getchar()) == '\n' || ch == EOF);
+        
 		switch(ch)
 		{
 			case 'a':
@@ -1048,7 +1058,10 @@ User_command getUserOption(void)
 				if(dirty) 
 				{
 					printf("There are unsaved changes. Do you want to save? [Y/n]");
-					ch = getchar();
+                    fflush(stdout);
+                    
+					while ((ch = getchar()) == '\n' || ch == EOF);
+                    
 					if(ch == 'n' || ch == 'N')
 					{
 						choice = CMD_QUIT;
