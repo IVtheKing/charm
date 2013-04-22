@@ -126,44 +126,51 @@ int readFileData( int rdfile, off_t off, size_t size, char *buf )
 	return 0;
 }
 
-Node_File * readFileNode(int rdfile, int offset, Node_File *parent)
+int readFile(int rdfile, Node_File *file)
 {
-	Node_File * file = (Node_File *)malloc(sizeof(Node_File));
-	if(!file)
-	{
-		fprintf(stderr,"malloc(%ld): %s\n", sizeof(Node_File), strerror(errno));
+    if(!file || rdfile < 0) {
+		fprintf(stderr,"ERROR: readFile invalid arguments\n");
+		return -1;
 	}
-		
-	// Clear the Node_File
-	memset(file, 0, sizeof(Node_File));
-		
-	// Attach the file to the parent
-	if(parent)
-	{
-		if(parent->child)
-		{
-			file->next = parent->child;
-		}
-		
-		parent->child = file;
-		file->parent = parent;
-	}
-	
-	if(readFileHeader(rdfile, offset, &file->fileHdr) < 0 ) {
-		return NULL;
-	}
-	
+
 	if((file->fileHdr.flags & F_DIR_MASK) == F_DIR) 
 	{
 		for(int i = 0; i < file->fileHdr.fileCount; i++)
 		{
-			Node_File * child = readFileNode(rdfile, file->fileHdr.offset + i * sizeof(Node_File), 	file);
-			
-			if(!child) 
+            Node_File * child = (Node_File *)malloc(sizeof(Node_File));
+            if(!child)
+            {
+                fprintf(stderr,"malloc(%ld): %s\n", sizeof(Node_File), strerror(errno));
+            }            
+
+            // Clear the Node_File
+            memset(child, 0, sizeof(Node_File));
+            
+            if(readFileHeader(rdfile, file->fileHdr.offset + i * sizeof(FS_FileHdr), &child->fileHdr) < 0 ) {
+                return -1;
+            }
+
+            			
+            // Attach the file to the parent
+            if(file->child)
+            {
+                child->next = file->child;
+            }
+            
+            file->child = child;
+            child->parent = file;
+        }
+        
+        
+		Node_File * child = file->child;
+        while(child)
+		{
+            if(readFile(rdfile, child) < 0)
 			{
 				fprintf(stderr,"ERROR: Error while reading folder - %s\n", file->fileHdr.fileName);
 				break;
 			}
+            child = child->next;
         }
 	}
 	else if(file->fileHdr.length > 0)
@@ -176,7 +183,7 @@ Node_File * readFileNode(int rdfile, int offset, Node_File *parent)
 		}
 	}
 	
-	return file;
+	return 0;
 }
 
 int makeRamdiskNode(int rdfile, Node_Ramdisk *rd)
@@ -205,14 +212,20 @@ int makeRamdiskNode(int rdfile, Node_Ramdisk *rd)
 	}
 	
 	// Read the root folder
-	rd->root = readFileNode(rdfile, rd->rdHdr.rootOffset, NULL);
-	
-	if(!rd->root)
-	{
-		fprintf(stderr,"ERROR: Root file system is empty\n");
-	}
+    rd->root = (Node_File *)malloc(sizeof(Node_File));
+    if(!rd->root)
+    {
+        fprintf(stderr,"malloc(%ld): %s\n", sizeof(Node_File), strerror(errno));
+    }
+    
+    // Clear the Node_File
+    memset(rd->root, 0, sizeof(Node_File));
+    
+    if(readFileHeader(rdfile, rd->rdHdr.rootOffset, &rd->root->fileHdr) < 0 ) {
+        return -1;
+    }
 
-	return 0;
+	return readFile(rdfile, rd->root);
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -800,7 +813,7 @@ int ramdiskAddFile(Node_Ramdisk *rd, const char * filepath)
 	}
 	
 	// Now we need to validate that a node with this name does not exist already
-	if(!searchFile(cur_dir, name))
+	if(searchFile(cur_dir, name))
 	{
 		fprintf(stderr,"ERROR: File/Folder '%s' already exists in '%s'\n", name, cur_dir->fileHdr.fileName);
 		status = -1;
@@ -826,6 +839,22 @@ int ramdiskAddFile(Node_Ramdisk *rd, const char * filepath)
 		cur_dir->child = newFile;
 	}
 	cur_dir->fileHdr.fileCount++;
+    
+    // Now read the file content
+    newFile->data = (char *) malloc(newFile->fileHdr.length);
+    if(!newFile->data)
+    {
+		fprintf(stderr,"ramdiskAddFile: malloc for file data (%d bytes) failed\n", newFile->fileHdr.length);
+		status = -1;
+		goto Exit;        
+    }
+    
+    // Read file data
+	if(read(addfile, newFile->data, newFile->fileHdr.length) == -1 ) {
+		fprintf(stderr,"read file '%s' failed: %s\n", newFile->fileHdr.fileName, strerror(errno));
+		return -1;
+	}
+
 	status = 0;
 	
 Exit:
@@ -852,7 +881,10 @@ void printFileName(Node_File * file, int depth)
 		printf("   ");
 	}
 
-	// First print file permissions
+    // Print File / Directory
+    printf("%c", (file->fileHdr.flags & F_DIR_MASK) ? 'd' : ' ');
+    
+	// Print file permissions
 	printf("%s%s%s ", fileAccessFlags[file->fileHdr.flags & 7],
 					  fileAccessFlags[(file->fileHdr.flags >> 4) & 7],
 					  fileAccessFlags[(file->fileHdr.flags >> 8) & 7]);
@@ -860,19 +892,22 @@ void printFileName(Node_File * file, int depth)
 	if((file->fileHdr.flags & F_DIR_MASK) == F_DIR)
 	{
 		// Print folder name and the number of files in the folder
-		printf("%s [%d]", file->fileHdr.fileName, file->fileHdr.fileCount);
-
-		// Now we need to print each child node
-		Node_File *child = file->child;
-		while(child) {
-			printFileName(child, depth+1);
-			child = child->next;
-		}
+        if(file->fileHdr.fileCount > 0)
+        {
+            printf("%s [%d files]", file->fileHdr.fileName, file->fileHdr.fileCount);
+        
+            // Now we need to print each child node
+            Node_File *child = file->child;
+            while(child) {
+                printFileName(child, depth+1);
+                child = child->next;
+            }
+        }
 	}
 	else
 	{
 		// Print file name
-		printf("%s", file->fileHdr.fileName);
+		printf("%s [%d bytes]", file->fileHdr.fileName, file->fileHdr.length);
 	}
 	
 }
@@ -983,7 +1018,8 @@ void handleUserCommand(User_command cmd)
 	switch(cmd)
 	{
 		case CMD_ADD_FILE:
-			scanf("Please input the relative path of the file: %s\n", str);
+			printf("Please input the relative path of the file: ");
+            scanf("%s", str);
 			if(ramdiskAddFile(&ramdisk, str) == 0) {
                 dirty = TRUE;
             }
