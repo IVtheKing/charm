@@ -20,7 +20,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
-
+#include <dirent.h>
 #include <stddef.h>
 
 #include "ramdisk.h"
@@ -32,6 +32,7 @@ typedef enum {
 	CMD_ADD_FILE,
 	CMD_DELETE_FILE,
 	CMD_ADD_FOLDER,
+    CMD_REC_ADD_FOLDER,
 	CMD_PRINT,
 	CMD_SAVE,
 	CMD_SAVE_AND_QUIT,
@@ -58,6 +59,7 @@ int readFileData(int rdfile, off_t off, size_t size, char *buf);
 int readFileHeader(int rdfile, off_t off, FS_FileHdr *fileHdr);
 int fixFileOffsets(Node_File *file, int * offset);
 void handleUserCommand(User_command cmd);
+int ramdiskAddFile(Node_Ramdisk *rd, const char * filepath);
 
 static int dirty = FALSE;
 char * rdFileName = NULL;
@@ -349,7 +351,7 @@ int writeFileNode(int rdfile, Node_File *file)
 	}
 	else if(file->fileHdr.length > 0)
 	{
-		if(write(rdfile, &file->data, file->fileHdr.length) < 0)
+		if(write(rdfile, file->data, file->fileHdr.length) < 0)
 		{
 			fprintf(stderr,"EROOR: file write error - %s\n", strerror(errno));
 			return -1;
@@ -721,6 +723,41 @@ int ramdiskAddFolder(Node_Ramdisk *rd, const char * folderpath)
 	return 0;
 }
 
+int ramdiskRecAddFolder(Node_Ramdisk *rd, const char * folderpath)
+{
+	char name[200];
+    int status = 0;
+	
+	if(!rd || !folderpath)
+	{
+		fprintf(stderr,"ramdiskRecAddFolder: Argument error\n");
+		return -1;
+	}
+	if(!rd->root)
+	{
+		fprintf(stderr,"ramdiskRecAddFolder: Root file system is not mounted\n");
+		return -1;
+	}
+	
+    DIR * dirp = opendir(folderpath);
+    struct dirent *dp;
+	while((status == 0) && (dp = readdir(dirp)) != NULL)
+    {
+        strncpy(name, dp->d_name, sizeof(name));
+
+        if(dp->d_type & DT_DIR) // If this is a directory
+        {
+            status = ramdiskRecAddFolder(rd, name);
+        }
+        else
+        {
+            status = ramdiskAddFile(rd, name);
+        }
+    }
+	
+	return status;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 // Functions to add files / folders to ramdisk
 // dst: is the destination path
@@ -833,11 +870,8 @@ int ramdiskAddFile(Node_Ramdisk *rd, const char * filepath)
 	newFile->parent = cur_dir;
 	if(cur_dir->child) {
 		newFile->next = cur_dir->child;
-		cur_dir->next = newFile;
 	}
-	else {
-		cur_dir->child = newFile;
-	}
+    cur_dir->child = newFile;
 	cur_dir->fileHdr.fileCount++;
     
     // Now read the file content
@@ -892,16 +926,13 @@ void printFileName(Node_File * file, int depth)
 	if((file->fileHdr.flags & F_DIR_MASK) == F_DIR)
 	{
 		// Print folder name and the number of files in the folder
-        if(file->fileHdr.fileCount > 0)
-        {
-            printf("%s [%d files]", file->fileHdr.fileName, file->fileHdr.fileCount);
-        
-            // Now we need to print each child node
-            Node_File *child = file->child;
-            while(child) {
-                printFileName(child, depth+1);
-                child = child->next;
-            }
+        printf("%s [%d files]", file->fileHdr.fileName, file->fileHdr.fileCount);
+    
+        // Now we need to print each child node
+        Node_File *child = file->child;
+        while(child) {
+            printFileName(child, depth+1);
+            child = child->next;
         }
 	}
 	else
@@ -1025,7 +1056,7 @@ void handleUserCommand(User_command cmd)
             }
 			break;
 		case CMD_DELETE_FILE:
-			scanf("Not Implemented\n");
+			printf("Not Implemented\n");
 			break;
 		case CMD_ADD_FOLDER:
             printf("Please input relative path of the new folder: ");
@@ -1034,6 +1065,13 @@ void handleUserCommand(User_command cmd)
                 dirty = TRUE;
             }
 			break;
+        case CMD_REC_ADD_FOLDER:
+            printf("Please input folder to be added to ramdisk: ");
+			scanf("%s", str);
+			if(ramdiskRecAddFolder(&ramdisk, str) == 0) {
+                dirty = TRUE;
+            }
+			break;            
 		case CMD_PRINT:
 			printFileName(ramdisk.root, 0);
             printf("\n");
@@ -1066,6 +1104,7 @@ User_command getUserOption(void)
 		printf("a: Add file\n");
 		printf("d: delete file or folder\n");
 		printf("f: Add folder\n");
+		printf("r: Recursive add folder\n");
 		printf("p: print ramdisk\n");
 		printf("s: save ramdisk\n");
 		printf("q: quit\n");
@@ -1083,6 +1122,9 @@ User_command getUserOption(void)
 				break;		
 			case 'f':
 				choice = CMD_ADD_FOLDER;
+				break;
+			case 'r':
+				choice = CMD_REC_ADD_FOLDER;
 				break;		
 			case 'p':
 				choice = CMD_PRINT;
