@@ -59,7 +59,7 @@ int readFileData(int rdfile, off_t off, size_t size, char *buf);
 int readFileHeader(int rdfile, off_t off, FS_FileHdr *fileHdr);
 int fixFileOffsets(Node_File *file, int * offset);
 void handleUserCommand(User_command cmd);
-int ramdiskAddFile(Node_Ramdisk *rd, const char * filepath);
+int ramdiskAddFile(Node_Ramdisk *rd, Node_File * pwd, const char * filepath);
 
 static int dirty = FALSE;
 char * rdFileName = NULL;
@@ -627,8 +627,8 @@ Node_File * ramdiskAddFolderToParent(Node_Ramdisk *rd, Node_File * parent, const
 	Node_File *child = parent->child;
 	while(child) {
 		if(!strcmp(child->fileHdr.fileName, foldername)) {
-			fprintf(stderr,"ERROR: File/Folder '%s' already exists\n", foldername);
-			return NULL;
+			fprintf(stderr,"INFO: File/Folder '%s' already exists\n", foldername);
+			return child;
 		}
 		child = child->next;
 	}
@@ -723,12 +723,17 @@ int ramdiskAddFolder(Node_Ramdisk *rd, const char * folderpath)
 	return 0;
 }
 
-int ramdiskRecAddFolder(Node_Ramdisk *rd, const char * folderpath)
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// This function recursively adds files & folders in the current folder to the ramdisk.
+// It is important that we should already be in the directory which needs to be recursed.
+/////////////////////////////////////////////////////////////////////////////////////////////////
+int ramdiskRecAddFolder(Node_Ramdisk *rd, Node_File *pwd)
 {
-	char name[200];
+	char name[100];
+    char cwd[100];
     int status = 0;
 	
-	if(!rd || !folderpath)
+	if(!rd || !pwd)
 	{
 		fprintf(stderr,"ramdiskRecAddFolder: Argument error\n");
 		return -1;
@@ -739,7 +744,14 @@ int ramdiskRecAddFolder(Node_Ramdisk *rd, const char * folderpath)
 		return -1;
 	}
 	
-    DIR * dirp = opendir(folderpath);
+    // Remember the current directory
+    if (!getcwd(cwd, sizeof(cwd))) {
+        fprintf(stderr, "Error getting current directory %s\n", strerror(errno));
+        return -1;
+    }
+    
+    DIR * dirp = opendir(cwd);
+    
     struct dirent *dp;
 	while((status == 0) && (dp = readdir(dirp)) != NULL)
     {
@@ -747,14 +759,39 @@ int ramdiskRecAddFolder(Node_Ramdisk *rd, const char * folderpath)
 
         if(dp->d_type & DT_DIR) // If this is a directory
         {
-            status = ramdiskRecAddFolder(rd, name);
+            // Skip . & .. folders
+            if(!strcmp(".", name) || !strcmp("..", name)) {
+                continue;
+            }
+                
+            printf("Adding Folder: %s\n", name);
+            
+            Node_File * child = ramdiskAddFolderToParent(rd, pwd, name);
+            if(!child) {
+                fprintf(stderr, "Error create ramdisk folder %s\n", name);
+                return -1;
+            }
+            
+            // Change pwd to the foldername
+            if(chdir(name))
+            {
+                fprintf(stderr, "Error changing dir %s\n", strerror(errno));
+                return -1;
+            }
+
+            // Recursively add the child folder
+            status = ramdiskRecAddFolder(rd, child);
+            
+            // Go back to initial folder
+            chdir(cwd);
         }
         else
         {
-            status = ramdiskAddFile(rd, name);
+            printf("Adding File: %s\n", name);
+            status = ramdiskAddFile(rd, pwd, name);
         }
     }
-	
+    
 	return status;
 }
 
@@ -762,14 +799,14 @@ int ramdiskRecAddFolder(Node_Ramdisk *rd, const char * folderpath)
 // Functions to add files / folders to ramdisk
 // dst: is the destination path
 //////////////////////////////////////////////////////////////////////////////////////////
-int ramdiskAddFile(Node_Ramdisk *rd, const char * filepath)
+int ramdiskAddFile(Node_Ramdisk *rd, Node_File * pwd, const char * filepath)
 {
 	int addfile = -1;
 	struct stat stat_buf;
 	int status = -1;
 	char name[MAX_FILE_NAME_SIZE];
 
-	if(!rd || !filepath)
+	if(!rd || !pwd || !filepath)
 	{
 		fprintf(stderr,"ramdiskAddFile: Argument error\n");
 		return -1;	
@@ -800,7 +837,7 @@ int ramdiskAddFile(Node_Ramdisk *rd, const char * filepath)
 	// Now scan through each folder in the filepath and create folders if it does not already exist
 	// Start searching from the root folder
 	int i = 0;
-	Node_File * cur_dir = rd->root;
+	Node_File * cur_dir = pwd;
 
 	// Start parsing the path
 	while(cur_dir)
@@ -840,7 +877,7 @@ int ramdiskAddFile(Node_Ramdisk *rd, const char * filepath)
 		goto Exit;	
 	}
 	
-	// Check if the destination path is a folder or a file. We expect a folder.
+    // Check if the destination path is a folder or a file. We expect a folder.
 	if((cur_dir->fileHdr.flags & F_DIR_MASK) != F_DIR)
 	{
 		// We were looking for a folder
@@ -856,16 +893,16 @@ int ramdiskAddFile(Node_Ramdisk *rd, const char * filepath)
 		status = -1;
 		goto Exit;
 	}
-	
-	// Create a new file node for the new file
+    
+    // Create a new file node for the new file
 	Node_File * newFile = (Node_File *) malloc(sizeof(Node_File));
 	
 	memset(newFile, 0, sizeof(Node_File));
 	
 	strncpy(newFile->fileHdr.fileName, name, MAX_FILE_NAME_SIZE);
-	newFile->fileHdr.flags = F_FILE | (stat_buf.st_mode & 0x777);
+    newFile->fileHdr.flags = F_FILE | (stat_buf.st_mode & 0x777);
 	newFile->fileHdr.length = (UINT32)stat_buf.st_size;
-	
+    
 	// Add the file to the folder
 	newFile->parent = cur_dir;
 	if(cur_dir->child) {
@@ -873,7 +910,7 @@ int ramdiskAddFile(Node_Ramdisk *rd, const char * filepath)
 	}
     cur_dir->child = newFile;
 	cur_dir->fileHdr.fileCount++;
-    
+
     // Now read the file content
     newFile->data = (char *) malloc(newFile->fileHdr.length);
     if(!newFile->data)
@@ -1011,7 +1048,7 @@ int main( int argc, char *argv[] )
 		goto Exit;
 	}
 	
-	if((status = ramdiskAddFile(&ramdisk, argv[2])) < 0)
+	if((status = ramdiskAddFile(&ramdisk, ramdisk.root, argv[2])) < 0)
 	{
 		goto Exit;
 	}
@@ -1051,7 +1088,7 @@ void handleUserCommand(User_command cmd)
 		case CMD_ADD_FILE:
 			printf("Please input the relative path of the file: ");
             scanf("%s", str);
-			if(ramdiskAddFile(&ramdisk, str) == 0) {
+			if(ramdiskAddFile(&ramdisk, ramdisk.root, str) == 0) {
                 dirty = TRUE;
             }
 			break;
@@ -1068,9 +1105,29 @@ void handleUserCommand(User_command cmd)
         case CMD_REC_ADD_FOLDER:
             printf("Please input folder to be added to ramdisk: ");
 			scanf("%s", str);
-			if(ramdiskRecAddFolder(&ramdisk, str) == 0) {
+            
+            char cwd[100];
+
+            // Remember the current directory
+            if (!getcwd(cwd, sizeof(cwd))) {
+                fprintf(stderr, "Error getting current directory %s\n", strerror(errno));
+                break;
+            }
+            
+            // Change pwd to the foldername
+            if(chdir(str))
+            {
+                fprintf(stderr, "Error changing dir %s\n", strerror(errno));
+                break;
+            }
+            
+			if(ramdiskRecAddFolder(&ramdisk, ramdisk.root) == 0) {
                 dirty = TRUE;
             }
+            
+            // Go back to the original folder
+            chdir(cwd);
+            
 			break;            
 		case CMD_PRINT:
 			printFileName(ramdisk.root, 0);
