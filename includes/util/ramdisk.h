@@ -82,13 +82,13 @@ INT32 lseek(INT32 fd, INT32 position, INT32 startpoint);
 	
 enum 
 {
-	S_ISUID   	= 0x0004000,    // set user id on execution
-	S_IRUSR   	= 0x0000400,    // protection: readable by owner
-	S_IWUSR   	= 0x0000200,    // writable by owner
-	S_IXUSR   	= 0x0000100,    // executable by owner
-	S_IRGRP   	= 0x0000040,    // readable by group
-	S_IWGRP   	= 0x0000020,    // writable by group
-	S_IXGRP   	= 0x0000010,    // executable by group
+	S_ISUID   	= 0x0000200,    // set user id on execution
+	S_IRUSR   	= 0x0000100,    // protection: readable by owner
+	S_IWUSR   	= 0x0000080,    // writable by owner
+	S_IXUSR   	= 0x0000040,    // executable by owner
+	S_IRGRP   	= 0x0000020,    // readable by group
+	S_IWGRP   	= 0x0000010,    // writable by group
+	S_IXGRP   	= 0x0000008,    // executable by group
 	S_IROTH   	= 0x0000004,    // readable by all
 	S_IWOTH   	= 0x0000002,    // writable by all
 	S_IXOTH   	= 0x0000001     // executable by all

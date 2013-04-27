@@ -30,9 +30,9 @@ Node_Ramdisk ramdisk;
 typedef enum {
 	CMD_INVALID,
 	CMD_ADD_FILE,
-	CMD_DELETE_FILE,
 	CMD_ADD_FOLDER,
-    CMD_REC_ADD_FOLDER,
+    CMD_REC_CONSTRUCT,
+    CMD_REC_DECONSTRUCT,
 	CMD_PRINT,
 	CMD_SAVE,
 	CMD_SAVE_AND_QUIT,
@@ -40,7 +40,7 @@ typedef enum {
 	
 } User_command;
 
-char fileAccessFlags [][4] = { 	
+char fileAccessFlags [][4] = {
 						"---",
 						"--x",
 						"-w-",
@@ -59,7 +59,7 @@ int readFileData(int rdfile, off_t off, size_t size, char *buf);
 int readFileHeader(int rdfile, off_t off, FS_FileHdr *fileHdr);
 int fixFileOffsets(Node_File *file, int * offset);
 void handleUserCommand(User_command cmd);
-int ramdiskAddFile(Node_Ramdisk *rd, Node_File * pwd, const char * filepath);
+Node_File * ramdiskAddFile(Node_Ramdisk *rd, Node_File * pwd, const char * filepath);
 
 static int dirty = FALSE;
 char * rdFileName = NULL;
@@ -333,7 +333,7 @@ int writeFileNode(int rdfile, Node_File *file)
 		{ 
 			if(write(rdfile, &child->fileHdr, sizeof(FS_FileHdr)) < 0)
 			{
-				fprintf(stderr,"EROOR: file write error - %s\n", strerror(errno));
+				fprintf(stderr,"ERROR: file write error %s: %s\n", child->fileHdr.fileName, strerror(errno));
 				return -1;
 			}
 			
@@ -353,7 +353,7 @@ int writeFileNode(int rdfile, Node_File *file)
 	{
 		if(write(rdfile, file->data, file->fileHdr.length) < 0)
 		{
-			fprintf(stderr,"EROOR: file write error - %s\n", strerror(errno));
+			fprintf(stderr,"ERROR: file write error %s: %s\n", file->fileHdr.fileName, strerror(errno));
 			return -1;
 		}	
 	}
@@ -389,14 +389,14 @@ int ramdiskWriteFile(int rdfile, Node_Ramdisk *rd)
 	// Start with the ramdisk header
 	if(write(rdfile, &rd->rdHdr, sizeof(FS_RamdiskHdr)) < 0)
 	{
-		fprintf(stderr,"EROOR: file write error - %s\n", strerror(errno));
+		fprintf(stderr,"ERROR: ramdisk file header write error - %s\n", strerror(errno));
 		return -1;
 	}
 	
     // Write file header for the root node itself
     if(write(rdfile, &rd->root->fileHdr , sizeof(FS_FileHdr)) < 0)
     {
-        fprintf(stderr,"EROOR: file write error - %s\n", strerror(errno));
+        fprintf(stderr,"ERROR: file write error %s: %s\n", rd->root->fileHdr.fileName, strerror(errno));
         return -1;
     }
     
@@ -612,6 +612,8 @@ Node_File * searchFile(Node_File * pwd, const char * filename)
 
 Node_File * ramdiskAddFolderToParent(Node_Ramdisk *rd, Node_File * parent, const char * foldername)
 {
+    struct stat stat_buf;
+
 	if(!rd || !parent || !foldername)
 	{
 		fprintf(stderr,"ramdiskAddFolderToParent: Argument error\n");
@@ -622,6 +624,12 @@ Node_File * ramdiskAddFolderToParent(Node_Ramdisk *rd, Node_File * parent, const
 		fprintf(stderr,"ramdiskAddFolderToParent: Root file system is not mounted\n");
 		return NULL;	
 	}
+    
+    if(stat(foldername, &stat_buf) < 0)
+    {
+        fprintf(stderr,"stat(\"%s\"): %s\n", foldername, strerror(errno));
+        return NULL;
+    }
 	
 	// Now we need to validate that a node with this name does not exist already
 	Node_File *child = parent->child;
@@ -639,7 +647,7 @@ Node_File * ramdiskAddFolderToParent(Node_Ramdisk *rd, Node_File * parent, const
 	memset(newFile, 0, sizeof(Node_File));
 	
 	strncpy(newFile->fileHdr.fileName, foldername, MAX_FILE_NAME_SIZE);
-	newFile->fileHdr.flags = F_DIR | (S_IRUSR | S_IWUSR | S_IXUSR) | S_IRGRP | S_IROTH;
+    newFile->fileHdr.flags = F_DIR | (stat_buf.st_mode & 0x1FF);
 	newFile->fileHdr.fileCount = 0;
 	
 	// Add the new folder to the ramdisk
@@ -763,10 +771,11 @@ int ramdiskRecAddFolder(Node_Ramdisk *rd, Node_File *pwd)
             if(!strcmp(".", name) || !strcmp("..", name)) {
                 continue;
             }
-                
+
             printf("Adding Folder: %s\n", name);
             
             Node_File * child = ramdiskAddFolderToParent(rd, pwd, name);
+            
             if(!child) {
                 fprintf(stderr, "Error create ramdisk folder %s\n", name);
                 return -1;
@@ -775,7 +784,7 @@ int ramdiskRecAddFolder(Node_Ramdisk *rd, Node_File *pwd)
             // Change pwd to the foldername
             if(chdir(name))
             {
-                fprintf(stderr, "Error changing dir %s\n", strerror(errno));
+                fprintf(stderr, "Error changing dir to %s: %s\n", name, strerror(errno));
                 return -1;
             }
 
@@ -787,19 +796,105 @@ int ramdiskRecAddFolder(Node_Ramdisk *rd, Node_File *pwd)
         }
         else
         {
+            // We don't want to add files that begin with '.' or '_'. Skip them.
+            if(name[0] == '.' || name[0] == '_') {
+                continue;
+            }
+
             printf("Adding File: %s\n", name);
-            status = ramdiskAddFile(rd, pwd, name);
+            
+            Node_File *child = ramdiskAddFile(rd, pwd, name);
+            if(!child)
+            {
+                fprintf(stderr, "Failed ramdiskAddFile for %s\n", name);
+                return -1;
+            }
         }
     }
     
 	return status;
 }
 
+/////////////////////////////////////////////////////////////////////////////////////////////////
+// This function recursively deconstructsa ramdisk into files & folders.
+// It is important that we should already be in the directory where we want to extract the ramdisk
+/////////////////////////////////////////////////////////////////////////////////////////////////
+int ramdiskDeconstruct(Node_Ramdisk *rd, Node_File *pwd)
+{
+    char cwd[100];
+	
+	if(!rd || !pwd)
+	{
+		fprintf(stderr,"ramdiskDeconstruct: Argument error\n");
+		return -1;
+	}
+	if(!rd->root)
+	{
+		fprintf(stderr,"ramdiskDeconstruct: Root file system is not mounted\n");
+		return -1;
+	}
+	
+    // Remember the current directory
+    if (!getcwd(cwd, sizeof(cwd))) {
+        fprintf(stderr, "Error getting current directory %s\n", strerror(errno));
+        return -1;
+    }
+    
+    // Loop through each child in this folder
+    Node_File * child = pwd->child;
+    
+    while(child)
+    {
+        if((child->fileHdr.flags & F_DIR_MASK) == F_DIR)
+        {
+            if(mkdir(child->fileHdr.fileName, child->fileHdr.flags & 0x1FF))
+            {
+                fprintf(stderr, "Could not create folder %s: %s\n", child->fileHdr.fileName, strerror(errno));
+                return -1;                
+            }
+            
+            // Change pwd to the foldername
+            if(chdir(child->fileHdr.fileName))
+            {
+                fprintf(stderr, "Error changing dir to %s: %s\n", child->fileHdr.fileName, strerror(errno));
+                return -1;
+            }
+            
+            ramdiskDeconstruct(rd, child);
+            
+            // Go back to initial folder
+            chdir(cwd);
+        }
+        else    // Data file
+        {
+            int file = open(child->fileHdr.fileName, O_WRONLY|O_CREAT|O_TRUNC, child->fileHdr.flags & 0x1FF);
+            if(!file)
+            {
+                fprintf(stderr, "Error creating file %s: %s\n", child->fileHdr.fileName, strerror(errno));
+                return -1;
+            }
+            
+            if(write(file, child->data, child->fileHdr.length) < 0)
+            {
+                fprintf(stderr,"ERROR: file write error %s: %s\n", child->fileHdr.fileName, strerror(errno));
+                close(file);
+                return -1;
+            }
+            
+            close(file);
+        }
+        
+        child = child->next;
+    }
+    
+    return 0;
+}
+
 //////////////////////////////////////////////////////////////////////////////////////////
 // Functions to add files / folders to ramdisk
 // dst: is the destination path
 //////////////////////////////////////////////////////////////////////////////////////////
-int ramdiskAddFile(Node_Ramdisk *rd, Node_File * pwd, const char * filepath)
+Node_File * ramdiskAddFile(Node_Ramdisk *rd, Node_File * pwd, const char * filepath)
 {
 	int addfile = -1;
 	struct stat stat_buf;
@@ -809,12 +904,12 @@ int ramdiskAddFile(Node_Ramdisk *rd, Node_File * pwd, const char * filepath)
 	if(!rd || !pwd || !filepath)
 	{
 		fprintf(stderr,"ramdiskAddFile: Argument error\n");
-		return -1;	
+		return NULL;
 	}
 	if(!rd->root)
 	{
 		fprintf(stderr,"ramdiskAddFile: Root file system is not mounted\n");
-		return -1;	
+		return NULL;
 	}
 	
 	// Add the new file to ramdisk
@@ -900,7 +995,7 @@ int ramdiskAddFile(Node_Ramdisk *rd, Node_File * pwd, const char * filepath)
 	memset(newFile, 0, sizeof(Node_File));
 	
 	strncpy(newFile->fileHdr.fileName, name, MAX_FILE_NAME_SIZE);
-    newFile->fileHdr.flags = F_FILE | (stat_buf.st_mode & 0x777);
+    newFile->fileHdr.flags = F_FILE | (stat_buf.st_mode & 0x1FF);
 	newFile->fileHdr.length = (UINT32)stat_buf.st_size;
     
 	// Add the file to the folder
@@ -923,11 +1018,12 @@ int ramdiskAddFile(Node_Ramdisk *rd, Node_File * pwd, const char * filepath)
     // Read file data
 	if(read(addfile, newFile->data, newFile->fileHdr.length) == -1 ) {
 		fprintf(stderr,"read file '%s' failed: %s\n", newFile->fileHdr.fileName, strerror(errno));
-		return -1;
+		status = -1;
 	}
-
-	status = 0;
-	
+    else {
+        status = 0;
+	}
+    
 Exit:
 
 	if(addfile >= 0) {
@@ -935,7 +1031,7 @@ Exit:
 		addfile = 0;
 	}		
 	
-	return status;
+	return (status == 0) ? newFile : NULL;
 }
 
 //////////////////////////////////////////////////////////////////////////////////////////
@@ -956,9 +1052,9 @@ void printFileName(Node_File * file, int depth)
     printf("%c", (file->fileHdr.flags & F_DIR_MASK) ? 'd' : ' ');
     
 	// Print file permissions
-	printf("%s%s%s ", fileAccessFlags[file->fileHdr.flags & 7],
-					  fileAccessFlags[(file->fileHdr.flags >> 4) & 7],
-					  fileAccessFlags[(file->fileHdr.flags >> 8) & 7]);
+	printf("%s%s%s ", fileAccessFlags[(file->fileHdr.flags >> 6) & 7],
+					  fileAccessFlags[(file->fileHdr.flags >> 3) & 7],
+                      fileAccessFlags[file->fileHdr.flags & 7]);
 
 	if((file->fileHdr.flags & F_DIR_MASK) == F_DIR)
 	{
@@ -1048,8 +1144,9 @@ int main( int argc, char *argv[] )
 		goto Exit;
 	}
 	
-	if((status = ramdiskAddFile(&ramdisk, ramdisk.root, argv[2])) < 0)
+	if(ramdiskAddFile(&ramdisk, ramdisk.root, argv[2]) == NULL)
 	{
+        status = -1;
 		goto Exit;
 	}
 
@@ -1082,18 +1179,16 @@ Exit:
 void handleUserCommand(User_command cmd)
 {
 	char str[100];
-	 
+    char cwd[100];
+    
 	switch(cmd)
 	{
 		case CMD_ADD_FILE:
 			printf("Please input the relative path of the file: ");
             scanf("%s", str);
-			if(ramdiskAddFile(&ramdisk, ramdisk.root, str) == 0) {
+			if(ramdiskAddFile(&ramdisk, ramdisk.root, str)) {
                 dirty = TRUE;
             }
-			break;
-		case CMD_DELETE_FILE:
-			printf("Not Implemented\n");
 			break;
 		case CMD_ADD_FOLDER:
             printf("Please input relative path of the new folder: ");
@@ -1102,12 +1197,10 @@ void handleUserCommand(User_command cmd)
                 dirty = TRUE;
             }
 			break;
-        case CMD_REC_ADD_FOLDER:
+        case CMD_REC_CONSTRUCT:
             printf("Please input folder to be added to ramdisk: ");
 			scanf("%s", str);
             
-            char cwd[100];
-
             // Remember the current directory
             if (!getcwd(cwd, sizeof(cwd))) {
                 fprintf(stderr, "Error getting current directory %s\n", strerror(errno));
@@ -1128,7 +1221,30 @@ void handleUserCommand(User_command cmd)
             // Go back to the original folder
             chdir(cwd);
             
-			break;            
+			break;
+        case CMD_REC_DECONSTRUCT:
+            printf("Please input folder where ramdisk should be deconstructed: ");
+			scanf("%s", str);
+                        
+            // Remember the current directory
+            if (!getcwd(cwd, sizeof(cwd))) {
+                fprintf(stderr, "Error getting current directory %s\n", strerror(errno));
+                break;
+            }
+            
+            // Change pwd to the foldername
+            if(chdir(str))
+            {
+                fprintf(stderr, "Error changing to dir %s\n", strerror(errno));
+                break;
+            }
+            
+			ramdiskDeconstruct(&ramdisk, ramdisk.root);
+            
+            // Go back to the original folder
+            chdir(cwd);
+            
+            break;
 		case CMD_PRINT:
 			printFileName(ramdisk.root, 0);
             printf("\n");
@@ -1159,9 +1275,9 @@ User_command getUserOption(void)
 	{
 		printf("\nChoose one of the following options:\n");
 		printf("a: Add file\n");
-		printf("d: delete file or folder\n");
 		printf("f: Add folder\n");
-		printf("r: Recursive add folder\n");
+		printf("r: Recursively build ramdisk from a folder\n");
+		printf("d: Recursively deconstruct ramdisk into files and folders\n");
 		printf("p: print ramdisk\n");
 		printf("s: save ramdisk\n");
 		printf("q: quit\n");
@@ -1174,15 +1290,15 @@ User_command getUserOption(void)
 			case 'a':
 				choice = CMD_ADD_FILE;				
 				break;
-			case 'd':
-				choice = CMD_DELETE_FILE;
-				break;		
 			case 'f':
 				choice = CMD_ADD_FOLDER;
 				break;
 			case 'r':
-				choice = CMD_REC_ADD_FOLDER;
-				break;		
+				choice = CMD_REC_CONSTRUCT;
+				break;
+            case 'd':
+                choice = CMD_REC_DECONSTRUCT;
+                break;
 			case 'p':
 				choice = CMD_PRINT;
 				break;
