@@ -1,6 +1,8 @@
-BIN=build/elfmerge
-OBJ=build/elfmerge.o
-SRC=elfmerge.c
+CC:=gcc
+
+BIN:=build/elfmerge
+OBJ:=build/elfmerge.o
+SRC:=elfmerge.c
 
 ROOT_DIR	:=	$(realpath ../..)
 

@@ -68,9 +68,10 @@ endif
 .PHONY:	all boot dep clean ramdiskmk elfmerge tools kernel usrlib
 
 all:
-	make tools
 	make boot
 	make kernel
+	make usrlib
+	make tools
 
 kernel:
 	@echo --------------------------------------------------------------------------------
@@ -102,6 +103,9 @@ boot:
 	@echo
 	make $(BOOT_TARGET)
 
+usrlib:
+	make -C usr/lib
+
 $(OBJ_DIR)/%.o: %.s
 	@test -d $(dir $@) || mkdir -pm 775 $(dir $@)
 	$(ASM) $(AFLAGS) -o $@ $<
@@ -115,7 +119,7 @@ $(KERNEL_TARGET): $(OBJS) $(OS_TARGET)
 
 $(BOOT_TARGET): $(BOOT_OBJS)
 	$(LINK) -nostartfiles -nostdlib -Ttext 0x00000000 $(BOOT_OBJS) -o $@
-
+	
 tools: 
 	@echo --------------------------------------------------------------------------------
 	@echo Building necessary tools
@@ -132,6 +136,7 @@ elfmerge:
 
 clean:
 	rm -rf $(DST)
+	make -C usr/lib clean
 	make -C tools/elfmerge clean
 	make -C tools/ramdiskmk clean
 

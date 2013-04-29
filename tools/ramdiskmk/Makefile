@@ -1,6 +1,8 @@
-BIN=build/ramdiskmk
-OBJ=build/ramdiskmk.o
-SRC=ramdiskmk.c
+CC:=gcc
+
+BIN:=build/ramdiskmk
+OBJ:=build/ramdiskmk.o
+SRC:=ramdiskmk.c
 
 ROOT_DIR	:=	$(realpath ../..)
 
