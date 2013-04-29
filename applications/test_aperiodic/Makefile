@@ -26,15 +26,25 @@ ifeq ($(SOC), s3c2440)
 	CORE := arm920t
 endif
 
-BUILD_DIR		:=	$(DST)/$(CONFIG)-$(TARGET)/$(APP)
+OS_DIR			:=	$(realpath ../..)
+BUILD_DIR		:=	$(DST)/$(CONFIG)
 MAP_FILE		:=	$(BUILD_DIR)/$(APP).map
-LINKERS_CRIPT	:=	scripts/$(APP)/memmap.ld
+LINKERS_CRIPT	:=	$(OS_DIR)/scripts/$(TARGET)/applications/memmap_$(APP).ld
 DEP_DIR			:=	$(BUILD_DIR)/dep
 OBJ_DIR			:=	$(BUILD_DIR)/obj
 BUILD_TARGET	:=	$(BUILD_DIR)/$(APP).elf
+USR_LIB			:=	$(OS_DIR)/usr/lib
+SOURCES			:= 	$(wildcard $(USR_LIB)/*.c)
 
-## Include Boot source files
-include $(wildcard applications/$(APP)/*.mk)
+## Include source files
+include $(wildcard *.mk)
+
+## Include folders
+INCLUDES		:=	$(INCLUDES) $(ROOT_DIR)/usr/includes
+INCLUDES		:=	$(addprefix -I , $(INCLUDES))
+
+## Build a list of corresponding object files
+OBJS			:=	$(addsuffix .o, $(basename $(addprefix $(OBJ_DIR)/, $(SOURCES))))
 
 ## Build flags
 AFLAGS		:=	-mcpu=arm920t -EL -g
@@ -45,7 +55,6 @@ ifeq ($(CONFIG),debug)
 else ifeq ($(CONFIG),release)
 	CFLAGS	:=	-O2 -D RELEASE $(CFLAGS)
 endif
-
 
 ## Rule specifications
 .PHONY:	all clean
@@ -58,6 +67,7 @@ all: $(BOOT_OBJS)
 	@echo SOC=$(SOC)
 	@echo CONFIG=$(CONFIG)
 	@echo APP=$(APP)
+	@echo ROOT_DIR=$(ROOT_DIR)
 	@echo BUILD_DIR=$(BUILD_DIR)
 	@echo OBJ_DIR=$(OBJ_DIR)
 	@echo MAP_FILE=$(MAP_FILE)

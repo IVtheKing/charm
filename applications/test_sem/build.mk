@@ -1,5 +1,3 @@
-## SOURCE_DIRS	:=	applications/$(APP)
-##
-## SOURCES		+=	$(foreach srcdir, $(SOURCE_DIRS), $(wildcard $(srcdir)/*.c))
+SOURCE_DIRS	:=	
 
-SOURCES	+=	applications/$(APP)/$(APP).c
+SOURCES		+=	 $(wildcard *.c) $(foreach srcdir, $(SOURCE_DIRS), $(wildcard $(srcdir)/*.c))

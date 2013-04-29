@@ -1,3 +1,3 @@
-SOURCE_DIRS	:=	$(realpath .)
+SOURCE_DIRS	:=	
 
-SOURCES		+=	$(foreach srcdir, $(SOURCE_DIRS), $(wildcard $(srcdir)/*.c))
+SOURCES		+=	 $(wildcard *.c) $(foreach srcdir, $(SOURCE_DIRS), $(wildcard $(srcdir)/*.c))

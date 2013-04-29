@@ -65,7 +65,7 @@ endif
 
 
 ## Rule specifications
-.PHONY:	all boot dep clean ramdiskmk elfmerge tools kernel
+.PHONY:	all boot dep clean ramdiskmk elfmerge tools kernel usrlib
 
 all:
 	make tools

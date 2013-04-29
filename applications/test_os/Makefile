@@ -26,21 +26,21 @@ ifeq ($(SOC), s3c2440)
 	CORE := arm920t
 endif
 
-ROOT_DIR		:=	$(realpath ../..)
-BUILD_DIR		:=	$(ROOT_DIR)/$(DST)/$(CONFIG)-$(TARGET)/$(APP)
+OS_DIR			:=	$(realpath ../..)
+BUILD_DIR		:=	$(DST)/$(CONFIG)
 MAP_FILE		:=	$(BUILD_DIR)/$(APP).map
-LINKERS_CRIPT	:=	$(ROOT_DIR)/scripts/$(TARGET)/memmap_$(APP).ld
+LINKERS_CRIPT	:=	$(OS_DIR)/scripts/$(TARGET)/applications/memmap_$(APP).ld
 DEP_DIR			:=	$(BUILD_DIR)/dep
 OBJ_DIR			:=	$(BUILD_DIR)/obj
 BUILD_TARGET	:=	$(BUILD_DIR)/$(APP).elf
-USR_LIB			:=	$(ROOT_DIR)/usr/lib
+USR_LIB			:=	$(OS_DIR)/usr/lib
 SOURCES			:= 	$(wildcard $(USR_LIB)/*.c)
 
 ## Include source files
 include $(wildcard *.mk)
 
 ## Include folders
-INCLUDES		:=	$(INCLUDES) $(ROOT_DIR)/usr/lib
+INCLUDES		:=	$(INCLUDES) $(ROOT_DIR)/usr/includes
 INCLUDES		:=	$(addprefix -I , $(INCLUDES))
 
 ## Build a list of corresponding object files
