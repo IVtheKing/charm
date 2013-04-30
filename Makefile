@@ -26,7 +26,6 @@ ifeq ($(SOC), s3c2440)
 	CORE := arm920t
 endif
 
-ROOT_DIR		:=	$(realpath ../..)
 BUILD_DIR		:=	$(DST)/$(CONFIG)-$(TARGET)
 MAP_FILE		:=	$(BUILD_DIR)/$(TARGET).map
 LINKERS_CRIPT	:=	scripts/$(TARGET)/memmap.ld
@@ -34,6 +33,7 @@ DEP_DIR			:=	$(BUILD_DIR)/dep
 OBJ_DIR			:=	$(BUILD_DIR)/obj
 KERNEL_TARGET	:=	$(BUILD_DIR)/$(TARGET).elf
 BOOT_TARGET		:=	$(BUILD_DIR)/boot.elf
+ROOTFS_PATH		:=	rootfs
 
 ## Create INCLUDES 
 include $(wildcard includes/*.mk)
@@ -72,6 +72,7 @@ all:
 	make kernel
 	make usrlib
 	make tools
+	make rootfs
 
 kernel:
 	@echo --------------------------------------------------------------------------------
@@ -86,6 +87,7 @@ kernel:
 	@echo SOURCES=$(SOURCES)
 	@echo OBJS=$(OBJS)
 	@echo INCLUDES=$(INCLUDES)
+	@echo ROOTFS_PATH=$(ROOTFS_PATH)
 	@echo
 	make $(KERNEL_TARGET)
 
@@ -104,7 +106,11 @@ boot:
 	make $(BOOT_TARGET)
 
 usrlib:
-	make -C usr/lib
+	make -C usr/lib	
+	
+rootfs: $(KERNEL_TARGET)
+	@test -d $(dir $(ROOTFS_PATH)/kernel/bin) || mkdir -pm 775 $(dir $(ROOTFS_PATH)/kernel/bin)
+	cp $(KERNEL_TARGET) $(ROOTFS_PATH)/kernel/bin/
 
 $(OBJ_DIR)/%.o: %.s
 	@test -d $(dir $@) || mkdir -pm 775 $(dir $@)
@@ -139,6 +145,8 @@ clean:
 	make -C usr/lib clean
 	make -C tools/elfmerge clean
 	make -C tools/ramdiskmk clean
+	rm -rf $(ROOTFS_PATH)/kernel/bin
+	rm -rf $(ROOTFS_PATH)/applications/bin
 
 ## Validate the arguments for build
 ifneq ($(CONFIG),debug)

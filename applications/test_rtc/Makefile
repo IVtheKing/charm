@@ -9,7 +9,6 @@
 
 CC:=arm-elf-gcc
 LINK:=arm-elf-ld
-LIBPATH:=/usr/local/dev-arm/i386-Darwin-arm-gcc-4.6.1/lib/gcc/arm-elf/4.6.1
 
 ## Initialize default arguments
 TARGET		?=	tq2440
@@ -26,21 +25,20 @@ ifeq ($(SOC), s3c2440)
 	CORE := arm920t
 endif
 
-OS_DIR			:=	$(realpath ../..)
+ROOT_DIR		:=	$(realpath ../..)
 BUILD_DIR		:=	$(DST)/$(CONFIG)
 MAP_FILE		:=	$(BUILD_DIR)/$(APP).map
-LINKERS_CRIPT	:=	$(OS_DIR)/scripts/$(TARGET)/applications/memmap_$(APP).ld
+LINKERS_CRIPT	:=	$(ROOT_DIR)/scripts/$(TARGET)/applications/memmap_$(APP).ld
 DEP_DIR			:=	$(BUILD_DIR)/dep
 OBJ_DIR			:=	$(BUILD_DIR)/obj
 BUILD_TARGET	:=	$(BUILD_DIR)/$(APP).elf
-USR_LIB			:=	$(OS_DIR)/usr/lib
-SOURCES			:= 	$(wildcard $(USR_LIB)/*.c)
+USR_LIB			:=	$(ROOT_DIR)/usr/lib/$(DST)/$(CONFIG)-$(TARGET)/usrlib.a
 
 ## Include source files
 include $(wildcard *.mk)
 
 ## Include folders
-INCLUDES		:=	$(INCLUDES) $(ROOT_DIR)/usr/includes
+INCLUDES		:=	$(ROOT_DIR)/usr/includes
 INCLUDES		:=	$(addprefix -I , $(INCLUDES))
 
 ## Build a list of corresponding object files
@@ -49,7 +47,7 @@ OBJS			:=	$(addsuffix .o, $(basename $(addprefix $(OBJ_DIR)/, $(SOURCES))))
 ## Build flags
 AFLAGS		:=	-mcpu=arm920t -EL -g
 CFLAGS		:=	-Wall -nostdinc -mcpu=$(CORE) -mlittle-endian
-LDFLAGS		:=	-nostartfiles -nostdlib -T$(LINKERS_CRIPT) -Map $(MAP_FILE) -L $(LIBPATH) -lgcc
+LDFLAGS		:=	-nostartfiles -nostdlib -T$(LINKERS_CRIPT) -Map $(MAP_FILE)
 ifeq ($(CONFIG),debug)
 	CFLAGS	:=	-g -O0 -D DEBUG $(CFLAGS)
 else ifeq ($(CONFIG),release)
@@ -59,9 +57,9 @@ endif
 ## Rule specifications
 .PHONY:	all clean
 
-all: $(BOOT_OBJS)
+all:
 	@echo --------------------------------------------------------------------------------
-	@echo Starting build with following parameters:
+	@echo Starting $(APP) build with following parameters:
 	@echo --------------------------------------------------------------------------------
 	@echo TARGET=$(TARGET) 
 	@echo SOC=$(SOC)
@@ -81,11 +79,14 @@ $(OBJ_DIR)/%.o: %.c
 	@test -d $(dir $@) || mkdir -pm 775 $(dir $@)
 	$(CC) -c $(CFLAGS) $(INCLUDES) $< -o $@
 
-$(BUILD_TARGET): $(OBJS) $(OS_TARGET)
+$(BUILD_TARGET): $(USR_LIB) $(OBJS)
 	$(LINK) $^ $(LDFLAGS) -o $@
 
+$(USR_LIB):
+	make -C $(ROOT_DIR)/usr/lib
+	
 clean:
-	rm -rf $(BUILD_DIR)
+	rm -rf $(DST)
 
 ## Validate the arguments for build
 ifneq ($(CONFIG),debug)
