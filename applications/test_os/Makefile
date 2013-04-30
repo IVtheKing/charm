@@ -33,6 +33,7 @@ DEP_DIR			:=	$(BUILD_DIR)/dep
 OBJ_DIR			:=	$(BUILD_DIR)/obj
 BUILD_TARGET	:=	$(BUILD_DIR)/$(APP).elf
 USR_LIB			:=	$(ROOT_DIR)/usr/lib/$(DST)/$(CONFIG)-$(TARGET)/usrlib.a
+ROOTFS_PATH		:=	$(ROOT_DIR)/rootfs
 
 ## Include source files
 include $(wildcard *.mk)
@@ -55,7 +56,7 @@ else ifeq ($(CONFIG),release)
 endif
 
 ## Rule specifications
-.PHONY:	all clean
+.PHONY:	all clean rootfs
 
 all:
 	@echo --------------------------------------------------------------------------------
@@ -74,6 +75,7 @@ all:
 	@echo INCLUDES=$(INCLUDES)
 	@echo
 	make $(BUILD_TARGET)
+	make rootfs
 
 $(OBJ_DIR)/%.o: %.c
 	@test -d $(dir $@) || mkdir -pm 775 $(dir $@)
@@ -84,6 +86,10 @@ $(BUILD_TARGET): $(USR_LIB) $(OBJS)
 
 $(USR_LIB):
 	make -C $(ROOT_DIR)/usr/lib
+
+rootfs: $(BUILD_TARGET)
+	@test -d $(dir $(ROOTFS_PATH)/applications/bin/) || mkdir -pm 775 $(dir $(ROOTFS_PATH)/applications/bin/)
+	cp $(BUILD_TARGET) $(ROOTFS_PATH)/applications/bin/
 	
 clean:
 	rm -rf $(DST)
