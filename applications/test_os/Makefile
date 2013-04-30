@@ -93,6 +93,7 @@ rootfs: $(BUILD_TARGET)
 	
 clean:
 	rm -rf $(DST)
+	rm -rf $(ROOTFS_PATH)/applications/bin/
 
 ## Validate the arguments for build
 ifneq ($(CONFIG),debug)

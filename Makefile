@@ -33,6 +33,7 @@ DEP_DIR			:=	$(BUILD_DIR)/dep
 OBJ_DIR			:=	$(BUILD_DIR)/obj
 KERNEL_TARGET	:=	$(BUILD_DIR)/$(TARGET).elf
 BOOT_TARGET		:=	$(BUILD_DIR)/boot.elf
+RAMDISK_TARGET	:=	$(BUILD_DIR)/ramdisk.img
 ROOTFS_PATH		:=	rootfs
 
 ## Create INCLUDES 
@@ -65,14 +66,14 @@ endif
 
 
 ## Rule specifications
-.PHONY:	all boot dep clean ramdiskmk elfmerge tools kernel usrlib
+.PHONY:	all boot dep clean ramdiskmk elfmerge tools kernel usrlib ramdisk
 
 all:
 	make boot
 	make kernel
 	make usrlib
-	make tools
-	make rootfs
+	make ramdisk
+	
 
 kernel:
 	@echo --------------------------------------------------------------------------------
@@ -111,7 +112,10 @@ usrlib:
 rootfs: $(KERNEL_TARGET)
 	@test -d $(dir $(ROOTFS_PATH)/kernel/bin/) || mkdir -pm 775 $(dir $(ROOTFS_PATH)/kernel/bin/)
 	cp $(KERNEL_TARGET) $(ROOTFS_PATH)/kernel/bin/
-
+	
+ramdisk: 
+	make $(RAMDISK_TARGET)
+		
 $(OBJ_DIR)/%.o: %.s
 	@test -d $(dir $@) || mkdir -pm 775 $(dir $@)
 	$(ASM) $(AFLAGS) -o $@ $<
@@ -125,7 +129,13 @@ $(KERNEL_TARGET): $(OBJS) $(OS_TARGET)
 
 $(BOOT_TARGET): $(BOOT_OBJS)
 	$(LINK) -nostartfiles -nostdlib -Ttext 0x00000000 $(BOOT_OBJS) -o $@
-	
+
+$(RAMDISK_TARGET):
+	make rootfs
+	make ramdiskmk
+	tools/ramdiskmk/build/ramdiskmk $(BUILD_DIR)/ramdisk.img $(ROOTFS_PATH)
+	@echo Finished creating ramdisk file $(BUILD_DIR)/ramdisk.img
+
 tools: 
 	@echo --------------------------------------------------------------------------------
 	@echo Building necessary tools
@@ -146,7 +156,6 @@ clean:
 	make -C tools/elfmerge clean
 	make -C tools/ramdiskmk clean
 	rm -rf $(ROOTFS_PATH)/kernel/bin
-	rm -rf $(ROOTFS_PATH)/applications/bin
 
 ## Validate the arguments for build
 ifneq ($(CONFIG),debug)

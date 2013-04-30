@@ -58,7 +58,7 @@ int readRamdiskHdr(int rdfile, FS_RamdiskHdr *rd);
 int readFileData(int rdfile, off_t off, size_t size, char *buf);
 int readFileHeader(int rdfile, off_t off, FS_FileHdr *fileHdr);
 int fixFileOffsets(Node_File *file, int * offset);
-void handleUserCommand(User_command cmd);
+void handleUserCommand(User_command cmd, const char * arg);
 Node_File * ramdiskAddFile(Node_Ramdisk *rd, Node_File * pwd, const char * filepath);
 
 static int dirty = FALSE;
@@ -1085,9 +1085,9 @@ int main( int argc, char *argv[] )
 	int rdfile = -1;
 	int status = 0;
 	
-	if(argc < 2) {
-		fprintf(stderr,"\nSYNTAX:\n%s <ramdisk file> [new file to be added]\n",argv[0]);
-		fprintf(stderr,"\nThis tool creates a ramdisk image and adds a new file to the ramdisk");
+	if(argc < 2 || argc > 3) {
+		fprintf(stderr,"\nSYNTAX:\n%s <ramdisk file> [root folder]\n",argv[0]);
+		fprintf(stderr,"\nThis tool creates a ramdisk image and recursively adds files/folders to the ramdisk");
         fprintf(stderr,"\nIf the ramdisk file already exists, then it just appends a new file to the ramdisk.");
         fprintf(stderr,"\nOtherwise it creates a ramdisk file containing the file to be added. \n\n");
 		return -1;
@@ -1136,10 +1136,17 @@ int main( int argc, char *argv[] )
 		do 
 		{
 			cmd = getUserOption();
-			handleUserCommand(cmd);
+			handleUserCommand(cmd, NULL);
 		}
 		while((cmd != CMD_QUIT) && (cmd != CMD_SAVE_AND_QUIT));
 		
+		status = 0;
+		goto Exit;
+	}
+	else if(argc == 3) // Recursively add files/ folders to the ramdisk
+	{
+		handleUserCommand(CMD_REC_CONSTRUCT, argv[2]);
+		handleUserCommand(CMD_SAVE_AND_QUIT, NULL);
 		status = 0;
 		goto Exit;
 	}
@@ -1176,7 +1183,7 @@ Exit:
 	return status;
 }
 
-void handleUserCommand(User_command cmd)
+void handleUserCommand(User_command cmd, const char * arg)
 {
 	char str[100];
     char cwd[100];
@@ -1198,8 +1205,14 @@ void handleUserCommand(User_command cmd)
             }
 			break;
         case CMD_REC_CONSTRUCT:
-            printf("Please input folder to be added to ramdisk: ");
-			scanf("%s", str);
+        	if(!arg) {
+	            printf("Please input folder to be added to ramdisk: ");
+				scanf("%s", str);
+			}
+            else
+            {
+            	strncpy(str, arg, sizeof(str));
+            }
             
             // Remember the current directory
             if (!getcwd(cwd, sizeof(cwd))) {
@@ -1223,8 +1236,14 @@ void handleUserCommand(User_command cmd)
             
 			break;
         case CMD_REC_DECONSTRUCT:
-            printf("Please input folder where ramdisk should be deconstructed: ");
-			scanf("%s", str);
+        	if(!arg) {
+				printf("Please input folder where ramdisk should be deconstructed: ");
+				scanf("%s", str);
+			}
+            else
+            {
+            	strncpy(str, arg, sizeof(str));
+            }
                         
             // Remember the current directory
             if (!getcwd(cwd, sizeof(cwd))) {
