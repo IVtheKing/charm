@@ -25,6 +25,29 @@
 
 #include "ramdisk.h"
 
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// Node structures used within this program to represent Ramdisk nodes
+//////////////////////////////////////////////////////////////////////////////////////////
+typedef struct
+{
+	FS_RamdiskHdr rdHdr;
+	struct Node_File *root;
+    
+} Node_Ramdisk;
+
+// Memory object for File node
+typedef struct Node_File
+{
+	FS_FileHdr fileHdr;
+	INT8 * data;
+	struct Node_File *parent;
+	struct Node_File *child;
+	struct Node_File *next;
+	
+} Node_File;
+
+// Global ramdisk object
 Node_Ramdisk ramdisk;
 
 typedef enum {

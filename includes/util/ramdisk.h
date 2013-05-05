@@ -47,25 +47,6 @@ typedef struct
 } FS_FileHdr;
 
 
-// Memory object for Ramdisk node
-typedef struct
-{
-	FS_RamdiskHdr rdHdr;
-	struct Node_File *root;	
-
-} Node_Ramdisk;
-
-// Memory object for File node
-typedef struct Node_File
-{
-	FS_FileHdr fileHdr;
-	INT8 * data;
-	struct Node_File *parent;
-	struct Node_File *child;
-	struct Node_File *next;
-	
-} Node_File;
-
 enum 
 {
 	F_DIR_MASK 	= 0x10000000,
