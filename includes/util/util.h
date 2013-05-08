@@ -15,12 +15,18 @@
 
 INT8 *strncpy(INT8 *dest, const INT8 *src, UINT32 n);
 INT8 *strcpy(INT8 *dest, const INT8 *src);
+INT32 strcmp(const INT8 *str1, const INT8 *str2);
+
+void* memset(void * ptr, UINT32 ch, UINT32 len);
+void* memcpy(void * dst, const void * src, UINT32 len);
 
 INT8 *itoa64(UINT64 value, INT8 *str);
 INT8 *itoa(UINT32 value, INT8 *str);
 
 INT8 bcda2bcdi(const INT8 *str, UINT32 *value);
 INT8 bcdi2bcda(UINT32 value, INT8 *str);
+
+INT32 GetFreeResIndex(UINT32 res_mask, UINT32 msb, UINT32 lsb);
 
 // Non Blocking single ASCII character read. Returns 0 if there is no data
 #define getchar() Uart_GetChar(DEBUG_UART_CHANNEL)

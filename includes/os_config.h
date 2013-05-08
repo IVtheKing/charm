@@ -92,6 +92,8 @@
 // File system & Ramdisk related
 #define MAX_FILE_NAME_SIZE	40
 
+#define MAX_OPEN_FILES_PER_PROCESS	8	// This should be <= 32
+
 // Debug & Info related
 
 // Define the Debug masks

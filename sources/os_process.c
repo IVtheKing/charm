@@ -44,6 +44,9 @@ OS_Error OS_CreateProcess(
 		return INVALID_ARG;
 	}
 	
+	// Clear the process structure
+	memset(process, 0, sizeof(OS_Process));
+	
 	// Copy process name
 	strncpy(process->name, process_name, OS_PROCESS_NAME_SIZE);
 	

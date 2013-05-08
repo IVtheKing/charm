@@ -50,6 +50,23 @@ INT8 *strcpy(INT8 *dest, const INT8 *src)
 	return dest;
 }
 
+INT32 strcmp(const INT8 *str1, const INT8 *str2)
+{
+    register const UINT8 *s1 = (const UINT8 *) str1;
+    register const UINT8 *s2 = (const UINT8 *) str2;
+    register UINT8 c1, c2;
+    
+    do
+    {
+        c1 = (UINT8) *s1++;
+        c2 = (UINT8) *s2++;
+        if (c1 == '\0') break;
+    } 
+    while (c1 == c2); 
+    
+    return (c1 - c2);
+}
+
 INT8 *itoa64(UINT64 value, INT8 *str)
 {
 	UINT32 i = 0;
@@ -148,3 +165,86 @@ INT8 bcdi2bcda(UINT32 value, INT8 *str)
 	return SUCCESS;
 }
 
+void* memset(void * ptr, UINT32 ch, UINT32 len)
+{
+	UINT8 * p = ptr;
+	UINT32 i;
+	
+	for (i = 0; i < len; i++) {
+		p[i] = ch;
+	}
+	
+	return ptr;
+}
+
+//////////////////////////////////////////////////////////////////////////////////////////
+// This function finds an available resource given a bit mask of resource availability
+// Uses binary search to find an unused bit index
+//////////////////////////////////////////////////////////////////////////////////////////
+INT32 GetFreeResIndex(UINT32 res_mask, UINT32 msb, UINT32 lsb)
+{
+	if(msb >= 32 || lsb >= 32 || lsb > msb) return -1;
+	
+	if(lsb == msb) 
+	{
+		return (~res_mask & (1 << lsb)) ? lsb : -1;
+	}
+	
+	UINT32 midb = (msb + lsb) >> 1;
+	
+	UINT32 lmask = ((2 << midb) - 1) - ((1 << lsb) - 1);
+	if(~res_mask & lmask) 
+	{
+		return GetFreeResIndex(res_mask, midb, lsb);
+	}
+	
+	UINT32 hmask = ((2 << msb) - 1) - ((1 << midb) - 1);
+	if(~res_mask & hmask) 
+	{
+		return GetFreeResIndex(res_mask, msb, midb);
+	}
+	
+	// If we reach this code, we did not find any resource available
+	return -1;	
+}
+
+void * memcpy(void *dst, const void *src, UINT32 len)
+{
+    UINT32 i;
+
+    /*
+     * memcpy does not support overlapping buffers, so always do it
+     * forwards. (Don't change this without adjusting memmove.)
+     *
+     * For speedy copying, optimize the common case where both pointers
+     * and the length are word-aligned, and copy word-at-a-time instead
+     * of byte-at-a-time. Otherwise, copy by bytes.
+     *
+     * The alignment logic below should be portable. We rely on
+     * the compiler to be reasonably intelligent about optimizing
+     * the divides and modulos out. Fortunately, it is.
+     */
+    
+    if((((UINT32)dst & 0x3) == 0) && (((UINT32)src & 0x3) == 0) && ((len & 0x3) == 0))
+    {
+        long * d = dst;
+        const long *s = src;
+        
+        for(i = 0; i < (len >> 2); i++)
+        {
+            d[i] = s[i];
+        }
+    }
+    else
+    {
+        char *d = dst;
+        const char *s = src;
+        
+        for(i = 0; i < len; i++)
+        {
+            d[i] = s[i];
+        }
+    }
+    
+    return dst;
+}

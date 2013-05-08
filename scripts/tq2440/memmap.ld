@@ -17,7 +17,8 @@ MEMORY
 */
 
 	OS_MEM		: ORIGIN = 0x30000000,  LENGTH = 0x100000	
-	APP_MEM		: ORIGIN = 0x30100000,  LENGTH = 0x3F00000	
+	RAMDISK		: ORIGIN = 0x30100000,  LENGTH = 0x100000	
+	APP_MEM		: ORIGIN = 0x30200000,  LENGTH = 0x3E00000
 }
 
 PHDRS
@@ -29,6 +30,10 @@ PHDRS
 
 SECTIONS
 {
+	/* Creating space for Ramdisk */
+	__ramdisk_start__ = 0x30100000;
+
+	/* Place other sections */
 	.text :
 	{
 		*(.text.vector)
@@ -67,4 +72,5 @@ SECTIONS
 		*(.stack)
 						
 	} > OS_MEM : data_seg
+		
 }

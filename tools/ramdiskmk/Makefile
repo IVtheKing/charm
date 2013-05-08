@@ -9,7 +9,7 @@ ROOT_DIR	:=	$(realpath ../..)
 INCLUDES=$(ROOT_DIR)/includes $(ROOT_DIR)/includes/util
 
 INCLUDES	:=	$(addprefix -I ,$(INCLUDES))
-CFLAGS		:=	-Wall -D DESKTOP_TARGET
+CFLAGS		:=	-Wall
 
 all: $(BIN)
 
